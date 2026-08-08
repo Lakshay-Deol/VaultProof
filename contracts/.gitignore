@@ -1,0 +1,12 @@
+dependencies
+
+.env
+
+cache
+out
+broadcast
+
+data
+node_modules
+
+.vscode/

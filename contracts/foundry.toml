@@ -1,0 +1,51 @@
+[profile.default]
+solc = "0.8.25"
+evm_version = "cancun"
+src = "src"
+out = "out"
+libs = ["dependencies"]
+fs_permissions = [{ access = "read-write", path = "./" }]
+viaIR = true
+
+
+[dependencies]
+forge-std = "1.9.5"
+"@openzeppelin-contracts" = "5.2.0-rc.1"
+surl = { version = "0.0.0", git = "https://github.com/memester-xyz/surl.git", rev = "034c912ae9b5e707a5afd21f145b452ad8e800df" }
+flare-periphery = "0.1.37"
+solady = "0.1.26"
+ftso-adapters = { version = "0.0.1", git = "https://github.com/0xreflexivity/ftso-adapters.git", rev = "5be6ec053b171cfa4e353e7f59df7803280b0527" }
+pyth-sdk-solidity = { version = "4.3.1", git = "https://github.com/0xreflexivity/pyth-sdk-solidity.git", rev = "c1a27b51b6cac702983d7e3cd2ae7319ffe6dff7" }
+
+[soldeer]
+# whether soldeer manages remappings
+# set to false because it messes up the ordering
+remappings_generate = false
+
+# whether soldeer re-generates all remappings when installing, updating or uninstalling deps
+remappings_regenerate = false
+
+# whether to suffix the remapping with the version: `name-a.b.c`
+remappings_version = false
+
+# where to store the remappings ("txt" for `remappings.txt` or "config" for `foundry.toml`)
+# ignored when `soldeer.toml` is used as config (uses `remappings.txt`)
+remappings_location = "txt"
+
+# Install all subdependencies
+recursive_deps = true
+
+[rpc_endpoints]
+coston = "${COSTON_RPC_URL}"
+coston2 = "${COSTON2_RPC_URL}"
+songbird = "${SONGBIRD_RPC_URL}"
+flare = "${FLARE_RPC_URL}"
+hyperliquidTestnet = "${HYPERLIQUID_TESTNET_RPC_URL}"
+sepolia = "${SEPOLIA_RPC_URL}"
+
+# Blockscout verification — no API key needed
+# Use: --verifier blockscout --verifier-url <explorer>/api/
+# Coston:  https://coston-explorer.flare.network/api/
+# Coston2: https://coston2-explorer.flare.network/api/
+# Songbird: https://songbird-explorer.flare.network/api/
+# Flare:   https://flare-explorer.flare.network/api/
