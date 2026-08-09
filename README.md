@@ -18,10 +18,11 @@ contracts/    flare-foundry-starter + our contracts in src/vaultproof/:
               The starter's src/proofOfReserves/ and src/FtsoV2Consumer.sol are
               useful references for FTSO reads. Deploy target: Coston2.
 
-web/          Next.js dapp. Empty on purpose: run Claude Code here with
-              web/PROMPT.md as the opening prompt. It builds the full mock-mode
-              flow (verify enclave -> HPKE seal -> pipeline -> tier -> borrow)
-              with adapter seams for going live later.
+web/          Next.js dapp, built. Runs the full flow (verify enclave -> HPKE
+              seal -> anchor -> enclave -> tier -> borrow) against a mocked
+              enclave and mocked chain, with adapter seams in lib/adapters/ for
+              going live later. The HPKE sealing and the attestation checks are
+              real in both modes. See web/README.md.
 
 reference/    flare-viem-starter, read-only reference for Coston2 chain config,
               FTSO reads from TS, and contract interaction patterns with viem.
@@ -32,13 +33,16 @@ docs/         The design spec PDF. Threat model is section 10, build plan
 
 ## Quickstart
 
-Frontend first (no chain, no TEE needed):
+Frontend first (no chain, no TEE, no wallet, no env file needed):
 
 ```bash
 cd web
-# open Claude Code, paste PROMPT.md, let it scaffold
-NEXT_PUBLIC_VAULTPROOF_MODE=mock npm run dev
+npm install
+npm run dev            # http://localhost:3000 — mock mode is the default
 ```
+
+Pick **Demo wallet** on the connect stage to run the whole pipeline without MetaMask.
+Checks: `npm run typecheck`, `npm test`, `npm run audit:secrets`.
 
 Contracts:
 

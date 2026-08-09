@@ -1,0 +1,168 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    color-scheme: dark;
+  }
+
+  html {
+    -webkit-text-size-adjust: 100%;
+    background: #0b0b0d;
+  }
+
+  body {
+    @apply bg-surface text-ink font-sans antialiased;
+    text-rendering: optimizeLegibility;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  ::selection {
+    background: rgba(230, 32, 88, 0.3);
+    color: #fff;
+  }
+
+  ::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+  ::-webkit-scrollbar-track {
+    background: #0b0b0d;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: #26262c;
+    border-radius: 6px;
+    border: 2px solid #0b0b0d;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: #37373f;
+  }
+
+  /* One visible focus treatment everywhere, keyboard-only. */
+  :focus-visible {
+    @apply outline-none ring-2 ring-flare/60 ring-offset-2 ring-offset-surface rounded;
+  }
+
+  h1,
+  h2,
+  h3 {
+    @apply text-balance;
+  }
+
+  hr {
+    @apply border-0 border-t border-line;
+  }
+}
+
+@layer components {
+  .shell {
+    @apply mx-auto w-full max-w-shell px-4 sm:px-8;
+  }
+
+  .prose-col {
+    @apply mx-auto w-full max-w-prose;
+  }
+
+  /* Small underline accent under a section heading. */
+  .accent-underline::after {
+    content: "";
+    @apply mt-3 block h-[2px] w-10 bg-flare;
+  }
+
+  /*
+   * Cards sit a shade above the page rather than below it, which is what makes
+   * a dark UI read as layered instead of flat-black.
+   */
+  .card {
+    @apply rounded-lg border border-line bg-surface-raised;
+  }
+
+  .card-hover {
+    @apply transition-all duration-200 hover:border-line-strong hover:shadow-hover;
+  }
+
+  .label {
+    @apply text-[11px] font-medium uppercase tracking-[0.14em] text-ink-muted;
+  }
+
+  /* Flare-docs left-border callout. */
+  .callout {
+    @apply border-l-2 border-flare bg-flare-soft py-3 pl-4 pr-4 text-[15px] leading-relaxed;
+  }
+
+  /*
+   * A one-pixel hairline that fades out at both ends. Used instead of a solid
+   * rule between sections — on a near-black ground a full-width 1px line reads
+   * as a seam, and this does not.
+   */
+  .hairline {
+    @apply h-px w-full border-0;
+    background: linear-gradient(90deg, transparent, #26262c 15%, #26262c 85%, transparent);
+  }
+}
+
+@layer utilities {
+  .text-balance {
+    text-wrap: balance;
+  }
+  .text-pretty {
+    text-wrap: pretty;
+  }
+  .no-scrollbar {
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+
+  /*
+   * Scroll reveal. Elements start shifted and fade in when they enter the
+   * viewport; the class is toggled by an IntersectionObserver in
+   * components/ui/Reveal.tsx. Defined here so the initial state is painted
+   * with the first frame rather than after hydration.
+   */
+  .reveal {
+    opacity: 0;
+    transform: translateY(14px);
+    transition:
+      opacity 620ms cubic-bezier(0.22, 1, 0.36, 1),
+      transform 620ms cubic-bezier(0.22, 1, 0.36, 1);
+    will-change: opacity, transform;
+  }
+  .reveal-in {
+    opacity: 1;
+    transform: none;
+  }
+
+  /* Pink radial wash behind the hero. The only large use of the accent. */
+  .hero-glow {
+    background:
+      radial-gradient(60% 55% at 18% 0%, rgba(230, 32, 88, 0.16), transparent 70%),
+      radial-gradient(40% 40% at 85% 10%, rgba(230, 32, 88, 0.07), transparent 70%);
+  }
+
+  /* Faint grid, barely there, to keep large dark areas from looking dead. */
+  .grid-wash {
+    background-image:
+      linear-gradient(to right, rgba(255, 255, 255, 0.022) 1px, transparent 1px),
+      linear-gradient(to bottom, rgba(255, 255, 255, 0.022) 1px, transparent 1px);
+    background-size: 56px 56px;
+    mask-image: radial-gradient(70% 60% at 50% 0%, #000, transparent 75%);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+  .reveal {
+    opacity: 1;
+    transform: none;
+  }
+}
