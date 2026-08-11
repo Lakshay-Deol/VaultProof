@@ -1,4 +1,4 @@
-export const REPO_URL = "https://github.com/prashantthakur/vaultproof";
+export const REPO_URL = "https://github.com/Lakshay-Deol/VaultProof";
 
 export const KRAKEN_API_KEY_URL = "https://www.kraken.com/u/security/api";
 
