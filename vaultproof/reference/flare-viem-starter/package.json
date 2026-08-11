@@ -1,0 +1,70 @@
+{
+  "name": "@flarenetwork/flare-smart-accounts-viem",
+  "version": "0.0.1",
+  "description": "Example TypeScript scripts for interacting with the Flare smart accounts using Viem.",
+  "author": "Flare Network",
+  "license": "MIT",
+  "keywords": [
+    "flare",
+    "smart-accounts",
+    "blockchain",
+    "web3",
+    "account-abstraction",
+    "xrpl"
+  ],
+  "homepage": "",
+  "repository": {},
+  "bugs": {},
+  "files": [
+    "CHANGELOG.md",
+    "LICENSE",
+    "README.md",
+    "SECURITY.md",
+    "dist",
+    "package.json"
+  ],
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "scripts": {
+    "script": "tsx --env-file=.env",
+    "test": "vitest run --root ./src",
+    "test-start": "vitest --root ./src",
+    "coverage": "vitest run --root ./src --coverage",
+    "prebuild": "rm -rf ./dist",
+    "build": "tsc --project ./tsconfig.build.json",
+    "format": "prettier --write .",
+    "format:check": "prettier .",
+    "lint": "eslint --fix",
+    "lint:check": "eslint"
+  },
+  "prettier": "@flarenetwork/prettier-config-flare",
+  "devDependencies": {
+    "@eslint/compat": "^2.0.2",
+    "@flarenetwork/eslint-config-flare": "^0.0.1",
+    "@flarenetwork/prettier-config-flare": "^0.0.2",
+    "@types/node": "^24.10.13",
+    "@vitest/coverage-v8": "4.0.15",
+    "eslint": "latest",
+    "eslint-config-prettier": "^10.1.8",
+    "prettier": "^3.8.1",
+    "prettier-plugin-solidity": "^2.2.1",
+    "tsx": "^4.21.0",
+    "typescript": "^5.9.3",
+    "vitest": "^4.0.18"
+  },
+  "dependencies": {
+    "@flarenetwork/flare-wagmi-periphery-package": "^3.6.0",
+    "@flarenetwork/smart-accounts-encoder": "^0.1.0",
+    "@layerzerolabs/lz-definitions": "^3.0.168",
+    "@layerzerolabs/lz-v2-utilities": "^3.0.168",
+    "viem": "~2.45.3",
+    "xrpl": "^4.6.0"
+  }
+}

@@ -1,0 +1,45 @@
+[[dependencies]]
+name = "@openzeppelin-contracts"
+version = "5.2.0-rc.1"
+url = "https://soldeer-revisions.s3.amazonaws.com/@openzeppelin-contracts/5_2_0-rc_1_18-12-2024_19:26:33_contracts.zip"
+checksum = "0430f56c556a4864cb2c0f28edbd497304a1e367d30dd07942778bef3a0f7a5f"
+integrity = "17e24d71e2995a505f428ff1e4b514723175d8c6f7b84db6a96cfa31bc73fe23"
+
+[[dependencies]]
+name = "flare-periphery"
+version = "0.1.37"
+url = "https://soldeer-revisions.s3.amazonaws.com/flare-periphery/0_1_37_15-09-2025_11:19:27_soldeer-flare-periphery.zip"
+checksum = "5e518d4bbf697d43a02676f2b618b9d6f7a22841eac0c205d4bac7a8c5371efc"
+integrity = "4c8b90474b6e212fb3d6a4901779cd17c1b1f3c6b527b74ed9922816966786b6"
+
+[[dependencies]]
+name = "forge-std"
+version = "1.9.5"
+url = "https://soldeer-revisions.s3.amazonaws.com/forge-std/1_9_5_21-12-2024_15:04:05_forge-std-1.9.zip"
+checksum = "57ada736f383289db77fac4472d48f820e7c98172cf9b01681b0c37065ce043f"
+integrity = "4753ffdfa0dde40878372b6a4d8e8fd1648b190b33996896c8b92f6f1680850f"
+
+[[dependencies]]
+name = "ftso-adapters"
+version = "0.0.1"
+git = "https://github.com/0xreflexivity/ftso-adapters.git"
+rev = "5be6ec053b171cfa4e353e7f59df7803280b0527"
+
+[[dependencies]]
+name = "pyth-sdk-solidity"
+version = "4.3.1"
+git = "https://github.com/0xreflexivity/pyth-sdk-solidity.git"
+rev = "c1a27b51b6cac702983d7e3cd2ae7319ffe6dff7"
+
+[[dependencies]]
+name = "solady"
+version = "0.1.26"
+url = "https://soldeer-revisions.s3.amazonaws.com/solady/0_1_26_25-08-2025_15:30:06_solady.zip"
+checksum = "9872ac7cfd32c1eba32800508a1325c49f4a4aa8c6f670454db91971a583e26b"
+integrity = "5da4b5ca9cbad98812a4b75ad528ff34c72a0b84433204be6d1420c81de1d6ff"
+
+[[dependencies]]
+name = "surl"
+version = "0.0.0"
+git = "https://github.com/memester-xyz/surl.git"
+rev = "034c912ae9b5e707a5afd21f145b452ad8e800df"
