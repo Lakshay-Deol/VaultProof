@@ -1,5 +1,7 @@
 import type { AttestationQuote } from "@/lib/adapters/types";
 
+import { verifyTokenSignature } from "./jwks";
+
 /**
  * Client-side attestation verification. Spec §6.
  *
@@ -72,7 +74,9 @@ export function checkQuoteShape(quote: AttestationQuote): CheckOutcome {
  * the measurement and the public key we are about to encrypt to are both
  * covered by it.
  */
-export function checkSignatureBinding(quote: AttestationQuote): CheckOutcome {
+export async function checkSignatureBinding(
+  quote: AttestationQuote,
+): Promise<CheckOutcome> {
   const body = parseQuoteBody(quote.quote);
   if (!body) return { ok: false, note: "", error: "Quote payload could not be read." };
 
@@ -95,14 +99,34 @@ export function checkSignatureBinding(quote: AttestationQuote): CheckOutcome {
     };
   }
 
-  const root =
-    quote.mode === 0
-      ? "AMD SEV-SNP → GCP Confidential Space root"
-      : "simulated root (SIMULATED_TEE=true)";
+  // The binding above proves the token is internally consistent. On its own
+  // that is not enough: a malicious operator could mint a JWT with any
+  // measurement and any key and it would pass. In hardware mode the signature
+  // is therefore verified against Google's published key set, in this browser.
+  if (quote.mode === 0) {
+    const signature = await verifyTokenSignature(quote.quote);
+    if (!signature.ok) {
+      return {
+        ok: false,
+        note: "",
+        error:
+          signature.error ??
+          "The attestation token's signature did not verify against Google's key set.",
+      };
+    }
+    return {
+      ok: true,
+      note: `Signature verified against Google Confidential Computing${
+        signature.kid ? ` (key ${signature.kid.slice(0, 8)}…)` : ""
+      }. Key and measurement are both inside it.`,
+    };
+  }
 
+  // Simulated mode cannot validate against a real root, and says so rather
+  // than implying a hardware guarantee it does not have.
   return {
     ok: true,
-    note: `Chains to ${root}. Key and measurement are both inside the signature.`,
+    note: "Simulated root (SIMULATED_TEE=true) — no hardware signature to check. Key and measurement are bound inside the payload.",
   };
 }
 

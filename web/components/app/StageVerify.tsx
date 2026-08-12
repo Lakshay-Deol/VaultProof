@@ -89,7 +89,7 @@ export function StageVerify() {
       // 2 — the binding that stops a substituted relay key.
       setCheck("signature", { status: "running" });
       await new Promise((r) => setTimeout(r, 700));
-      const sig = checkSignatureBinding(fetched);
+      const sig = await checkSignatureBinding(fetched);
       if (!sig.ok) {
         setCheck("signature", { status: "fail", error: sig.error });
         fail("verify", sig.error ?? "Attestation signature did not verify.");

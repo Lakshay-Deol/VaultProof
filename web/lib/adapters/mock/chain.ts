@@ -14,10 +14,10 @@ import { delay, fakeHash } from "./util";
 /**
  * The mock chain.
  *
- * Reads and writes a small localStorage record shaped exactly like the public
+ * Reads and writes a small in-memory record shaped exactly like the public
  * state a real Coston2 deployment would expose: attestations, borrow balances,
  * anchored request hashes. Nothing private is representable here, which is the
- * point.
+ * point, and nothing survives a reload — see ./state.ts.
  */
 export class MockChainClient implements ChainClient {
   async getWhitelistedMeasurements(): Promise<`0x${string}`[]> {

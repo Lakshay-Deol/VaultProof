@@ -26,14 +26,20 @@ export interface ContractEntry {
   placeholder: boolean;
 }
 
-/** Deployed on Coston2. Replace when contracts land. */
+/**
+ * Deployed on Coston2 (2026-08-12, deployer 0xEa0de9C49d2E935a2c3757F82a42f1e00ab2730e),
+ * verified on Blockscout. Source of truth: contracts/deployment-addresses.vaultproof.json,
+ * written by script/vaultproof/DeployVaultProof.s.sol.
+ */
 const live: Record<ContractKey, `0x${string}`> = {
-  solvencyRegistry: "0x0000000000000000000000000000000000000000",
-  lendingPool: "0x0000000000000000000000000000000000000000",
-  instructionSender: "0x0000000000000000000000000000000000000000",
-  // Flare protocol contract — fixed, not deployed by us.
-  teeExtensionRegistry: "0x0000000000000000000000000000000000000000",
-  usdc: "0x0000000000000000000000000000000000000000",
+  solvencyRegistry: "0xD653bE4c296E2462D22254953D2Aaa7D4DA1917C",
+  lendingPool: "0x3b7c700cd2d812348de61BD13b28e601C661b5Da",
+  instructionSender: "0x45540745B838F6f3feC76E662b5539BcB82339c3",
+  // VaultProof's own TeeMeasurementRegistry: Flare's Coston2 protocol
+  // contracts do not yet expose an `isWhitelisted` measurement surface, so we
+  // deploy the whitelist ourselves and swap to the protocol registry later.
+  teeExtensionRegistry: "0xe1788fF42Fc5a5B4012d5af6f8B51fe3a3eF36f7",
+  usdc: "0x459c634EE948f6D486b714E06C1F186034F2e7A4",
 };
 
 /**
@@ -77,9 +83,9 @@ export const CONTRACTS: ContractEntry[] = [
   },
   {
     key: "teeExtensionRegistry",
-    label: "TeeExtensionRegistry",
+    label: "TeeMeasurementRegistry",
     address: source.teeExtensionRegistry,
-    blurb: "Flare's on-chain whitelist of trusted enclave code hashes.",
+    blurb: "On-chain whitelist of trusted enclave code hashes.",
     placeholder: IS_MOCK,
   },
 ];

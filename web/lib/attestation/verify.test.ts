@@ -53,14 +53,14 @@ describe("checkQuoteShape", () => {
 });
 
 describe("checkSignatureBinding", () => {
-  it("accepts a quote whose key and measurement are both inside the signature", () => {
-    expect(checkSignatureBinding(honest()).ok).toBe(true);
+  it("accepts a quote whose key and measurement are both inside the signature", async () => {
+    expect((await checkSignatureBinding(honest())).ok).toBe(true);
   });
 
   /** Spec §10, attack 1. This is the check the whole product rests on. */
-  it("rejects a substituted relay public key", () => {
+  it("rejects a substituted relay public key", async () => {
     const relayKey = "0x9999999999999999999999999999999999999999999999999999999999999999";
-    const result = checkSignatureBinding({
+    const result = await checkSignatureBinding({
       ...honest(),
       enclavePubKey: relayKey as `0x${string}`,
       // The relay forwards the enclave's genuine, untouched quote.
@@ -70,8 +70,8 @@ describe("checkSignatureBinding", () => {
     expect(result.error).toMatch(/substituted relay key/);
   });
 
-  it("rejects a measurement swapped alongside the quote", () => {
-    const result = checkSignatureBinding({
+  it("rejects a measurement swapped alongside the quote", async () => {
+    const result = await checkSignatureBinding({
       ...honest(),
       measurement: `0x${"a".repeat(64)}` as `0x${string}`,
     });
@@ -79,9 +79,55 @@ describe("checkSignatureBinding", () => {
     expect(result.error).toMatch(/not the one inside it/);
   });
 
-  it("names the real hardware root only when mode is 0", () => {
-    expect(checkSignatureBinding({ ...honest(), mode: 0 }).note).toMatch(/AMD SEV-SNP/);
-    expect(checkSignatureBinding(honest()).note).toMatch(/simulated root/);
+  it("does not claim a hardware root in simulated mode", async () => {
+    expect((await checkSignatureBinding(honest())).note).toMatch(/[Ss]imulated root/);
+  });
+
+  /**
+   * The binding checks above only prove the token is self-consistent. In
+   * hardware mode the signature must actually verify, or a malicious operator
+   * could mint a JWT with any measurement and any key and sail through.
+   *
+   * fetch is stubbed so the unit suite never depends on Google being
+   * reachable; the JWKS below is well-formed but is not the key that signed
+   * our fixture, so verification must fail.
+   */
+  it("rejects a token whose signature does not verify, in hardware mode", async () => {
+    const realFetch = globalThis.fetch;
+    globalThis.fetch = (async (url: string | URL | Request) => {
+      const href = String(url);
+      const body = href.includes("openid-configuration")
+        ? { jwks_uri: "https://example.invalid/jwks" }
+        : { keys: [{ kid: "test", kty: "RSA", alg: "RS256", n: "sXchDaQ", e: "AQAB" }] };
+      return { ok: true, json: async () => body } as Response;
+    }) as typeof globalThis.fetch;
+
+    try {
+      const result = await checkSignatureBinding({ ...honest(), mode: 0 });
+      expect(result.ok).toBe(false);
+      expect(result.error).toMatch(/did not verify|key set/i);
+    } finally {
+      globalThis.fetch = realFetch;
+    }
+  });
+
+  /** alg:none is the classic JWT bypass; accepting it makes every other check decorative. */
+  it("rejects alg:none outright, without consulting any key set", async () => {
+    const token = [
+      Buffer.from(JSON.stringify({ alg: "none", typ: "JWT" })).toString("base64url"),
+      Buffer.from(
+        JSON.stringify({
+          iss: "https://confidentialcomputing.googleapis.com",
+          submods: { container: { image_digest: MEASUREMENT } },
+          eat_nonce: PUBKEY,
+        }),
+      ).toString("base64url"),
+      "",
+    ].join(".");
+
+    const result = await checkSignatureBinding({ ...honest(), mode: 0, quote: token });
+    expect(result.ok).toBe(false);
+    expect(result.error).toMatch(/no signature algorithm/i);
   });
 });
 

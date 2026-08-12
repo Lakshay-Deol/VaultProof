@@ -1,0 +1,7 @@
+{
+  "instructionSender": "0x45540745B838F6f3feC76E662b5539BcB82339c3",
+  "lendingPool": "0x3b7c700cd2d812348de61BD13b28e601C661b5Da",
+  "solvencyRegistry": "0xD653bE4c296E2462D22254953D2Aaa7D4DA1917C",
+  "teeMeasurementRegistry": "0xe1788fF42Fc5a5B4012d5af6f8B51fe3a3eF36f7",
+  "usdc": "0x459c634EE948f6D486b714E06C1F186034F2e7A4"
+}

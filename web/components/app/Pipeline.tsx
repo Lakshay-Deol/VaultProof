@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
+import { useWalletClient } from "wagmi";
 
 import { StageAnchor } from "@/components/app/StageAnchor";
 import { StageAttested } from "@/components/app/StageAttested";
@@ -10,6 +11,7 @@ import { StageSeal } from "@/components/app/StageSeal";
 import { StageSummary } from "@/components/app/StageShell";
 import { StageVerify } from "@/components/app/StageVerify";
 import { Stepper } from "@/components/app/Stepper";
+import { bindWalletClient } from "@/lib/adapters/live/publicClient";
 import { bindMockWallet } from "@/lib/adapters/mock/chain";
 import { explorerTx } from "@/lib/config/chain";
 import { IS_MOCK } from "@/lib/config/mode";
@@ -44,12 +46,18 @@ export function Pipeline() {
   const anchorTxHash = usePipeline((s) => s.anchorTxHash);
   const attestation = usePipeline((s) => s.attestation);
 
-  // `borrow(amount)` has no wallet argument — on-chain it is msg.sender. The
-  // mock needs the equivalent, and it has to be bound from a component that
-  // outlives stage 1, or the binding effect never runs.
+  const { data: walletClient } = useWalletClient();
+
+  // `borrow(amount)` has no wallet argument — on-chain it is msg.sender. Both
+  // adapters need the equivalent bound to them, and it has to happen from a
+  // component that outlives stage 1, or the binding effect never runs.
   useEffect(() => {
     bindMockWallet(wallet);
   }, [wallet]);
+
+  useEffect(() => {
+    bindWalletClient(walletClient ?? null);
+  }, [walletClient]);
 
   const active = transitions.activeStage(status, wallet, failedStage);
   const sealUnlocked = transitions.canSeal(status) || status === "anchoring" || status === "processing" || status === "attested";

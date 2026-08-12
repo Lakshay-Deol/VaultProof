@@ -1,0 +1,491 @@
+% =====================================================================
+%  VaultProof --- DoraHacks submission (Flare Summer Signal, Bounty 2)
+%
+%  Compile with:   pdflatex vaultproof-submission.tex
+%                  pdflatex vaultproof-submission.tex     (twice, for the TOC)
+%
+%  Everything you are likely to change lives in one of two places:
+%    1. The \newcommand definitions in the FACTS block just below --- the
+%       addresses, tx hashes and test counts appear once each and are
+%       referenced everywhere else, so updating a number here updates it
+%       throughout the document.
+%    2. The section bodies, which map one-to-one onto the DoraHacks form
+%       fields and are ordered the way the form asks for them.
+% =====================================================================
+
+\documentclass[11pt,a4paper]{article}
+
+% ---- encoding & fonts -----------------------------------------------
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage{lmodern}
+\usepackage{microtype}
+
+% ---- layout ---------------------------------------------------------
+\usepackage[margin=2.4cm]{geometry}
+\usepackage{parskip}          % blank line between paragraphs, no indent
+\usepackage{titlesec}
+\usepackage{enumitem}
+\usepackage{fancyhdr}
+
+% ---- tables ---------------------------------------------------------
+\usepackage{tabularx}
+\usepackage{booktabs}
+\usepackage{array}
+
+% ---- misc -----------------------------------------------------------
+\usepackage{xcolor}
+\usepackage{seqsplit}         % lets long hex strings wrap inside a cell
+\usepackage[htt]{hyphenat}    % allow hyphenation inside \texttt identifiers
+\usepackage[hidelinks]{hyperref}
+
+% ---- colours --------------------------------------------------------
+\definecolor{flare}{HTML}{E62058}
+\definecolor{inkmuted}{HTML}{555560}
+\definecolor{rulegrey}{HTML}{CCCCD2}
+
+% ---- section styling ------------------------------------------------
+\titleformat{\section}
+  {\normalfont\Large\bfseries\color{flare}}{\thesection.}{0.6em}{}
+\titleformat{\subsection}
+  {\normalfont\large\bfseries}{\thesubsection}{0.6em}{}
+\titlespacing*{\section}{0pt}{1.6em}{0.6em}
+\titlespacing*{\subsection}{0pt}{1.2em}{0.4em}
+
+% ---- running header -------------------------------------------------
+\pagestyle{fancy}
+\fancyhf{}
+\renewcommand{\headrulewidth}{0.4pt}
+\fancyhead[L]{\small\color{inkmuted}VaultProof}
+\fancyhead[R]{\small\color{inkmuted}Flare Summer Signal --- Bounty 2}
+\fancyfoot[C]{\small\thepage}
+
+% Long \code{} identifiers can resist breaking; a little slack lets TeX
+% find an acceptable break rather than running into the margin.
+\setlength{\emergencystretch}{2em}
+
+% Ragged-right variant of tabularx's X column: justified text in a narrow
+% cell produces ugly stretched spacing.
+\newcolumntype{L}{>{\raggedright\arraybackslash}X}
+
+% ---- helpers --------------------------------------------------------
+% Long hex values: monospace, small, and allowed to wrap mid-string.
+\newcommand{\hex}[1]{{\ttfamily\footnotesize\seqsplit{#1}}}
+% Inline code / identifiers.
+\newcommand{\code}[1]{\texttt{\small #1}}
+% A short labelled callout for the "one line" style statements.
+\newcommand{\keyline}[1]{%
+  \begin{center}\itshape #1\end{center}}
+
+% =====================================================================
+%  FACTS --- edit these, not the body text
+% =====================================================================
+\newcommand{\ProjectName}{VaultProof}
+\newcommand{\TeamName}{Prashant Thakur}
+\newcommand{\RepoURL}{https://github.com/Lakshay-Deol/VaultProof}
+\newcommand{\ChainName}{Flare Coston2}
+\newcommand{\ChainID}{114}
+
+% Deployed contracts
+\newcommand{\AddrRegistry}{0xD653bE4c296E2462D22254953D2Aaa7D4DA1917C}
+\newcommand{\AddrPool}{0x3b7c700cd2d812348de61BD13b28e601C661b5Da}
+\newcommand{\AddrSender}{0x45540745B838F6f3feC76E662b5539BcB82339c3}
+\newcommand{\AddrMeasurement}{0xe1788fF42Fc5a5B4012d5af6f8B51fe3a3eF36f7}
+\newcommand{\AddrUSDC}{0x459c634EE948f6D486b714E06C1F186034F2e7A4}
+
+% Live transactions
+\newcommand{\TxAttest}{0xd99378e7a668ff52eef4e032902cd8e2d4df99401b908fb316ac686af73ceb4f}
+\newcommand{\TxBorrow}{0x66fde48b7de4c0871b23662fa966e2a13d984d773f90fcb0c0d316e54bd02b46}
+
+% Test counts
+\newcommand{\TestsTotal}{73}
+\newcommand{\TestsGo}{25}
+\newcommand{\TestsFoundry}{11}
+\newcommand{\TestsWeb}{33}
+\newcommand{\TestsLive}{4}
+
+% =====================================================================
+
+\begin{document}
+
+% ---------------------------------------------------------------- title
+\begin{center}
+  {\Huge\bfseries \ProjectName\par}
+  \vspace{0.4em}
+  {\large\color{flare} Prove solvency. Reveal nothing.\par}
+  \vspace{0.9em}
+  {\color{inkmuted}
+   DoraHacks --- Flare Summer Signal\\
+   Bounty 2: Confidential Compute Apps\\
+   Deployed on \ChainName{} (chain ID \ChainID)\par}
+\end{center}
+
+\vspace{0.6em}
+{\color{rulegrey}\hrule}
+\vspace{1.4em}
+
+\tableofcontents
+\vspace{1.2em}
+
+% ================================================================ 1
+\section{Project overview}
+
+\begin{tabularx}{\textwidth}{@{}l L@{}}
+  \toprule
+  \textbf{Project name}   & \ProjectName \\
+  \textbf{Bounty}         & Bounty 2 --- Confidential Compute Apps (Flare Confidential Compute) \\
+  \textbf{One line}       & Prove solvency. Reveal nothing. \\
+  \textbf{Network}        & \ChainName{} testnet, chain ID \ChainID \\
+  \textbf{Repository}     & \url{\RepoURL} \\
+  \textbf{Team}           & \TeamName \\
+  \textbf{Licence}        & MIT \\
+  \bottomrule
+\end{tabularx}
+
+% ================================================================ 2
+\section{Short product description}
+
+\ProjectName{} is a confidential solvency oracle on Flare Confidential Compute.
+A borrower seals a read-only exchange API key to a public key that only a
+hardware enclave holds. The enclave decrypts it, queries the exchange, prices
+the holdings with Flare's own FTSO feeds, and reduces everything to a coarse
+solvency tier plus a nullifier and an expiry.
+
+What reaches the chain is a wallet address, a tier, an expiry, a nullifier and
+a code-hash measurement --- never the API key, the exchange name, the asset
+mix, the exact balance, or the account identifier. A \code{LendingPool}
+contract reads that tier to extend undercollateralised credit.
+
+\keyline{FDC brings public data on-chain. FCC brings private conclusions on-chain.}
+
+FDC's security comes from replication, and replication is incompatible with
+secrecy --- you cannot ask ten verifiers to check a balance behind one API key
+without giving ten verifiers the API key. That gap is what this fills.
+
+% ================================================================ 3
+\section{Target user}
+
+\textbf{Crypto-holding borrowers locked out of undercollateralised credit.}
+Someone with 2,000 USDC on Flare and \$52,000 on an exchange, who cannot borrow
+8,000 USDC because the chain cannot see off-chain wealth and there is no safe
+way to prove it.
+
+\textbf{Lending protocols that want a solvency signal without custody of user
+data.} A pool that would extend a larger cap given evidence of off-chain
+assets, but does not want to hold, process, or be liable for exchange
+credentials.
+
+% ================================================================ 4
+\section{How it helps day-to-day life}
+
+Maya holds 2,000 USDC on-chain and \$52,000 on Kraken. Her boiler dies; she
+needs 8,000 USDC for six weeks. She is good for it many times over --- but
+every on-chain lender sees 2,000 USDC and lends her about 1,600.
+
+\begin{tabularx}{\textwidth}{@{}l L@{}}
+  \toprule
+  \textbf{Her options today} & \textbf{What it costs her} \\
+  \midrule
+  Sell the exchange position
+    & Taxable event, loses a position she wanted to keep, to solve a six-week gap \\
+  \addlinespace
+  Exchange loan desk
+    & KYC, custody, jurisdiction limits, days to weeks \\
+  \addlinespace
+  Give an API key to a scoring service
+    & Their ops team reads her live balances; their breach becomes her breach \\
+  \bottomrule
+\end{tabularx}
+
+\vspace{0.8em}
+Each trades away the position, the time, or the privacy. \ProjectName{} trades
+away none: she seals a read-only key, the enclave publishes \code{T3}, the pool
+raises her cap.
+
+\subsection{Why it generalises}
+
+The same machine answers other questions. Swap the final reducer and you get:
+
+\begin{itemize}[leftmargin=1.2em, itemsep=0.35em]
+  \item \textbf{Proof of income for renting} --- an income band, instead of
+        three months of bank statements listing every merchant and habit.
+  \item \textbf{Proof of reserves for custodians} --- solvency without
+        publishing the treasury layout to competitors and attackers.
+  \item \textbf{Private KYC} --- ``over 18, not sanctioned, resident of X'',
+        computed over documents no database ever holds.
+\end{itemize}
+
+The general shape is \emph{a private fact you can prove but not safely share}.
+
+% ================================================================ 5
+\section{Full flow --- six stages}
+
+Each stage is gated on the last in code, not in the UI.
+
+\begin{tabularx}{\textwidth}{@{}c l L L@{}}
+  \toprule
+  \textbf{\#} & \textbf{Stage} & \textbf{Public} & \textbf{Sealed} \\
+  \midrule
+  1 & Connect   & wallet address              & --- \\
+  \addlinespace
+  2 & Verify    & measurement, enclave pubkey & operator cannot substitute a key \\
+  \addlinespace
+  3 & Seal      & ciphertext length           & API key, secret, exchange \\
+  \addlinespace
+  4 & Anchor    & keccak256(blob), tx hash    & blob never enters calldata \\
+  \addlinespace
+  5 & Enclave   & ``processing''              & balance, asset mix, account id \\
+  \addlinespace
+  6 & Attested  & tier, expiry, nullifier, build & everything else, permanently \\
+  \bottomrule
+\end{tabularx}
+
+\subsection{The four details that carry the security}
+
+\begin{enumerate}[leftmargin=1.4em, itemsep=0.4em]
+  \item \textbf{The signature is verified in the user's browser}, against
+        Google's published keys --- not on our backend. A signature our own
+        server checks for you proves nothing to you. \code{alg: none} is
+        rejected outright.
+  \item \textbf{The enclave's public key is inside the signed token}, passed as
+        the attestation \code{eat\_nonce}. A relay that swaps in its own key
+        fails on the user's machine.
+  \item \textbf{Hash first, ciphertext second.} Putting ciphertext in calldata
+        publishes it permanently, so a future key compromise would
+        retroactively expose every credential ever submitted.
+  \item \textbf{Pricing happens inside the enclave, from FTSO.} If it trusted
+        the exchange's own USD figure, anyone running a server that speaks the
+        Kraken wire format could mint themselves a top tier.
+\end{enumerate}
+
+After all six stages the chain knows roughly \textbf{2.5 bits} about Maya's
+wealth. That is the entire public footprint of a \$52,000 credit decision.
+
+% ================================================================ 6
+\section{How the project uses Flare}
+
+The test of a meaningful integration is what breaks without it, so that is the
+column that matters.
+
+\begin{tabularx}{\textwidth}{@{}l L L@{}}
+  \toprule
+  \textbf{Component} & \textbf{Role} & \textbf{What breaks without it} \\
+  \midrule
+  FCC / Confidential Space
+    & Runs the handler in a VM the host cannot read; the launcher --- outside
+      the container's control --- signs a statement of which image booted.
+    & There is no version of this on a normal server. Somebody's ops team reads
+      live credentials, and the entire product is that nobody can. \\
+  \addlinespace
+  FTSO
+    & Prices holdings inside the enclave, from the chain the loan settles on.
+    & A self-hosted ``exchange'' could inflate itself into the top tier. \\
+  \addlinespace
+  Measurement registry
+    & On-chain whitelist of trusted code hashes, checked before encrypting.
+    & ``Trust the code, not the operator'' becomes unverifiable. \\
+  \addlinespace
+  Coston2
+    & Hosts registry, pool and sender; anchors requests, enforces caps at
+      drawdown.
+    & The enclave's output is a dashboard receipt, not a credit decision. \\
+  \bottomrule
+\end{tabularx}
+
+% ================================================================ 7
+\section{What was newly built}
+
+\subsection{Base used as-is}
+
+Flare's \code{fce-extension-scaffold}, \code{flare-foundry-starter} and
+\code{flare-viem-starter}.
+
+\subsection{Built during the program}
+
+\begin{itemize}[leftmargin=1.2em, itemsep=0.45em]
+  \item \textbf{Five Solidity contracts}, deployed and Blockscout-verified.
+        \code{SolvencyRegistry} enforces expiry in the read path, handles
+        nullifier collisions, and re-checks the measurement at write time.
+        \code{LendingPool} applies tier caps that extend rather than replace
+        collateral. \code{VaultProofInstructionSender} handles the anchor, the
+        TEE write path and FCC routing. Plus the measurement registry and a
+        test USDC token.
+
+  \item \textbf{The solvency enclave} in Go --- HPKE unseal, Kraken
+        HMAC-SHA512 signed reads, FTSO pricing resolved through the Flare
+        contract registry, HMAC nullifier, zeroize in defers. Credentials are
+        held in \code{[]byte}, never \code{string}, because Go strings cannot
+        be scrubbed.
+
+  \item \textbf{Real hardware attestation} --- the enclave requests a token
+        from the Confidential Space launcher over its unix socket, binds its
+        X25519 key as the \code{eat\_nonce}, and reports the signed
+        \code{image\_digest} as its measurement. A fresh token per request,
+        not one minted at boot and replayed.
+
+  \item \textbf{Real quote verification} --- the browser fetches Google's
+        Confidential Computing key set and verifies the token signature with
+        WebCrypto, enforcing issuer and expiry.
+
+  \item \textbf{The whole frontend} --- 4 pages, 6 stages, mock/live adapter
+        seams, a state machine, real in-browser HPKE, and the design system.
+        The directory was empty at the start of the program.
+
+  \item \textbf{Both live adapters} --- viem/wagmi against the deployed
+        contracts, and the enclave client against \code{/quote} and
+        \code{/sealed}.
+
+  \item \textbf{The attack simulator} --- stage 2 ships a ``Try breaking it''
+        control that runs a substituted relay key and an unwhitelisted build
+        against the same verifier the honest path uses. Both hard-stop, with
+        no override.
+
+  \item \textbf{\TestsTotal{} tests} --- \TestsGo{} Go, \TestsFoundry{}
+        Foundry, \TestsWeb{} web unit, \TestsLive{} live against Coston2.
+\end{itemize}
+
+\subsection{Three real bugs found and fixed}
+
+\begin{enumerate}[leftmargin=1.4em, itemsep=0.4em]
+  \item The scaffold's \code{teeutils.ToHash} right-pads a string into a
+        \code{bytes32}, while the contract and frontend use \code{keccak256}.
+        The two disagree completely and the failure is silent --- the exact
+        vanishing-instruction bug the spec warns about.
+  \item Blob delivery was keyed by SHA-256 while the browser anchors
+        \code{keccak256}, so the enclave would never have found the blob.
+  \item Attestation check 2 verified the token's \emph{binding} but never its
+        \emph{signature}, so a forged token with matching fields would have
+        passed all three checks.
+\end{enumerate}
+
+% ================================================================ 8
+\section{Deployment details}
+
+\ChainName{} testnet, chain ID \ChainID. All five contracts verified on
+Blockscout.
+
+\begin{tabularx}{\textwidth}{@{}l L@{}}
+  \toprule
+  \textbf{Contract} & \textbf{Address} \\
+  \midrule
+  SolvencyRegistry            & \hex{\AddrRegistry} \\
+  LendingPool                 & \hex{\AddrPool} \\
+  VaultProofInstructionSender & \hex{\AddrSender} \\
+  TeeMeasurementRegistry      & \hex{\AddrMeasurement} \\
+  MockUSDC (tUSDC)            & \hex{\AddrUSDC} \\
+  \bottomrule
+\end{tabularx}
+
+\subsection{Live evidence}
+
+\begin{itemize}[leftmargin=1.2em, itemsep=0.35em]
+  \item T3 attestation delivered --- \hex{\TxAttest}
+  \item Borrowed 15,000 tUSDC --- \hex{\TxBorrow}
+  \item A 50,000 attempt reverted with \code{over cap} --- the contract refuses
+        rather than trusting the front end.
+\end{itemize}
+
+% ================================================================ 9
+\section{Technical execution}
+
+Each part can be checked independently:
+
+\begin{quote}
+\ttfamily\small
+cd web \&\& npm run dev\\
+\hspace*{2em}\textrm{\itshape localhost:3000, mock mode, no wallet or funds needed}\\[0.3em]
+cd extension/go \&\& go run ./cmd\\
+\hspace*{2em}\textrm{\itshape the enclave on :8080}\\[0.3em]
+curl localhost:8080/quote\\
+\hspace*{2em}\textrm{\itshape measurement, enclave pubkey, attestation mode}\\[0.3em]
+go run ./cmd/smoke\\
+\hspace*{2em}\textrm{\itshape seals as the browser does, attests, checks replay}\\[0.3em]
+cd web \&\& npm run test:live\\
+\hspace*{2em}\textrm{\itshape \TestsLive{} tests against the real Coston2 deployment}
+\end{quote}
+
+\code{cmd/smoke} proves the two HPKE implementations agree: it fails at
+\code{unseal:} if they ever drift, and at \code{query:} if the credential
+simply is not a real Kraken key --- so the message tells you which.
+
+% ================================================================ 10
+\section{Honest limitations}
+
+\begin{itemize}[leftmargin=1.2em, itemsep=0.45em]
+  \item \textbf{Hardware mode has never executed.} The attestation code is real
+        and on the real path --- on Confidential Space it fetches a genuine
+        AMD SEV-SNP-backed token and the browser verifies it against Google.
+        But it has not been run on that hardware, so no claim is made that it
+        has. Locally it reports simulated mode and the UI renders it as such.
+        Every failure branch fails closed to simulated rather than
+        overclaiming.
+
+  \item \textbf{Attestation freshness.} A quote proves the code that booted,
+        not the code running at request time. Per-request tokens narrow this;
+        nothing closes it.
+
+  \item \textbf{Side channels.} AMD SEV has a published history of them.
+        Adequate at moderate size; not a claim of perfection.
+
+  \item \textbf{Exchange trust.} If Kraken lies about a balance, \ProjectName{}
+        faithfully attests a lie. The system proves what a named source said,
+        not what is true.
+
+  \item \textbf{Governance.} Whoever controls whitelisting is a trusted role.
+        The system is not trustless end to end and does not claim to be.
+\end{itemize}
+
+% ================================================================ 11
+\section{Roadmap}
+
+\begin{enumerate}[leftmargin=1.4em, itemsep=0.35em]
+  \item \textbf{Run it on Confidential Space} --- build reproducibly, list the
+        resulting image digest on the measurement registry, deploy, and serve
+        hardware mode.
+  \item \textbf{Reproducible-build verifier CLI} --- so strangers can rebuild
+        the image and check the hash themselves.
+  \item \textbf{Multi-TEE quorum} --- use the cosigner threshold already in the
+        FCC instruction params; require $k$-of-$n$ enclaves to agree.
+  \item \textbf{Revocation} --- an explicit revoke path and a kill switch for a
+        superseded build.
+  \item \textbf{More sources} --- Coinbase, Binance, then bank APIs behind one
+        credential schema.
+  \item \textbf{New reducers} --- proof of income, proof of reserves, private
+        KYC assertions.
+  \item \textbf{Governance hardening} --- whitelist control to a multisig, then
+        to a lender-governed set.
+  \item \textbf{Audit, Songbird, mainnet.}
+\end{enumerate}
+
+% ================================================================ 12
+\section{Distribution and testing}
+
+No user acquisition yet --- the project is pre-public-demo. Testing to date is
+the \TestsTotal-test suite plus on-chain runs against the live deployment. The
+honest statement is that this has been validated technically, not yet with real
+users.
+
+% ================================================================ 13
+\section{Repository, team and licence}
+
+\begin{tabularx}{\textwidth}{@{}l L@{}}
+  \toprule
+  Repository    & \url{\RepoURL} \\
+  Design spec   & \code{docs/design-spec.pdf} --- threat model \S10, build plan
+                  \S11, demo script \S12 \\
+  Team          & \TeamName \\
+  Licence       & MIT \\
+  \bottomrule
+\end{tabularx}
+
+\vspace{1.4em}
+{\color{rulegrey}\hrule}
+\vspace{0.8em}
+
+\noindent
+{\small\color{inkmuted}
+% ---- TODO before submitting: fill these two in ----------------------
+\textbf{Still to fill in:} the public demo URL and the recorded video
+walkthrough.}
+
+\end{document}

@@ -10,6 +10,7 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
+    "test:live": "NEXT_PUBLIC_VAULTPROOF_MODE=live vitest run --config vitest.live.config.ts",
     "audit:secrets": "bash scripts/audit-secrets.sh"
   },
   "dependencies": {

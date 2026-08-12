@@ -12,8 +12,11 @@ import { wagmiConfig } from "@/lib/wagmi";
 export function Providers({ children }: { children: React.ReactNode }) {
   const [queryClient] = useState(() => new QueryClient());
 
+  // reconnectOnMount is off for the same reason storage is null in
+  // lib/wagmi.ts: connecting is stage 1 of the pipeline, never something that
+  // happens silently on page load.
   return (
-    <WagmiProvider config={wagmiConfig}>
+    <WagmiProvider config={wagmiConfig} reconnectOnMount={false}>
       <QueryClientProvider client={queryClient}>
         <ToastProvider>
           <PointerGlow />

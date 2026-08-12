@@ -8,6 +8,21 @@ fs_permissions = [{ access = "read-write", path = "./" }]
 viaIR = true
 
 
+# Scoped profile for the VaultProof stack. The starter ships example sources
+# (fassets/LayerZero) whose git-submodule deps are not vendored, so a full
+# `forge build` fails; this profile compiles only what VaultProof deploys.
+# Use: FOUNDRY_PROFILE=vaultproof forge test / forge script ...
+[profile.vaultproof]
+solc = "0.8.25"
+evm_version = "cancun"
+src = "src/vaultproof"
+test = "test/vaultproof"
+script = "script/vaultproof"
+out = "out"
+libs = ["dependencies"]
+fs_permissions = [{ access = "read-write", path = "./" }]
+viaIR = true
+
 [dependencies]
 forge-std = "1.9.5"
 "@openzeppelin-contracts" = "5.2.0-rc.1"

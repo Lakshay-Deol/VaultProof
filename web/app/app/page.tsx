@@ -13,9 +13,9 @@ export const metadata: Metadata = {
 };
 
 /**
- * Only the stage machinery is client-only — it touches WebCrypto and
- * localStorage on mount. The page heading, the mode pill and the footer link
- * are static, so the part of the page that renders first is also the part that
+ * Only the stage machinery is client-only — it touches WebCrypto and wallet
+ * state on mount. The page heading, the mode pill and the footer link are
+ * static, so the part of the page that renders first is also the part that
  * never moves.
  */
 const Pipeline = dynamic(

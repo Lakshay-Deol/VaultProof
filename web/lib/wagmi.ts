@@ -15,7 +15,7 @@ const projectId = process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID;
 export const wagmiConfig = createConfig({
   chains: [coston2],
   connectors: [
-    injected({ shimDisconnect: true }),
+    injected({ shimDisconnect: false }),
     ...(projectId
       ? [
           walletConnect({
@@ -35,6 +35,10 @@ export const wagmiConfig = createConfig({
     [coston2.id]: http(),
   },
   ssr: true,
+  // No persisted connection state: every visit starts at stage 1 with an
+  // explicit connect. Without this, wagmi writes the last connector to
+  // localStorage and silently reconnects on load, skipping the connect stage.
+  storage: null,
 });
 
 export const HAS_WALLETCONNECT = Boolean(projectId);

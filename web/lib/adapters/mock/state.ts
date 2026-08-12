@@ -1,11 +1,15 @@
 import type { AttestationRecord } from "@/lib/adapters/types";
 
 /**
- * Persisted mock chain state. A refresh mid-demo must not lose the attestation
- * or the borrow — a judge who reloads the page should still see their tier.
+ * Mock chain state, held in memory for the lifetime of the tab and nowhere else.
  *
- * Nothing credential-derived is ever written here. The shape below is exactly
- * what a real chain would expose publicly.
+ * Deliberately not persisted: connecting a wallet is stage 1 of the pipeline,
+ * and a reload must land back there with nothing carried over. Persisting it
+ * meant a returning visitor was silently restored mid-flow — an attestation
+ * they never watched happen, from a session they'd already finished.
+ *
+ * The shape below is exactly what a real chain would expose publicly; nothing
+ * credential-derived is representable here, which is the point.
  */
 export interface MockState {
   version: 1;
@@ -14,8 +18,6 @@ export interface MockState {
   requests: Array<{ hash: string; txHash: string; at: number }>;
 }
 
-const KEY = "vaultproof.mock.v1";
-
 const empty = (): MockState => ({
   version: 1,
   attestations: {},
@@ -23,42 +25,23 @@ const empty = (): MockState => ({
   requests: [],
 });
 
+let state: MockState = empty();
+
 export function readState(): MockState {
-  if (typeof window === "undefined") return empty();
-  try {
-    const raw = window.localStorage.getItem(KEY);
-    if (!raw) return empty();
-    const parsed = JSON.parse(raw) as MockState;
-    if (parsed.version !== 1) return empty();
-    return { ...empty(), ...parsed };
-  } catch {
-    return empty();
-  }
+  return state;
 }
 
 export function writeState(next: MockState): void {
-  if (typeof window === "undefined") return;
-  try {
-    window.localStorage.setItem(KEY, JSON.stringify(next));
-  } catch {
-    /* quota or private mode — the demo still works, it just stops persisting */
-  }
+  state = next;
 }
 
-export function mutateState(fn: (state: MockState) => void): MockState {
-  const state = readState();
+export function mutateState(fn: (draft: MockState) => void): MockState {
   fn(state);
-  writeState(state);
   return state;
 }
 
 export function clearState(): void {
-  if (typeof window === "undefined") return;
-  try {
-    window.localStorage.removeItem(KEY);
-  } catch {
-    /* ignore */
-  }
+  state = empty();
 }
 
 export const normaliseWallet = (wallet: string) => wallet.toLowerCase();
