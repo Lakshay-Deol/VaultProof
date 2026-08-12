@@ -23,6 +23,11 @@ Her three options today all cost her something.
 - An exchange loan desk means KYC, custody, jurisdiction limits and days to weeks of waiting.
 - Handing an API key to a scoring service means their ops team can read her live balances, and their breach becomes her breach.
 
+<img width="1768" height="653" alt="image" src="https://github.com/user-attachments/assets/ca22ff1d-0ff7-4b64-8b8c-878f204c91cb" />
+
+
+
+
 Each trades away the position, the time, or the privacy. VaultProof trades away none. She seals a read-only key, the enclave publishes T3, the pool raises her cap.
 
 The same machine answers other questions. Swap the final reducer and you get proof of income for renting, an income band instead of three months of bank statements listing every merchant and habit. Or proof of reserves for custodians, solvency without publishing the treasury layout to competitors. Or private KYC: over 18, not sanctioned, resident of X, computed over documents no database ever holds.
@@ -39,6 +44,35 @@ Each stage is gated on the last in code, not in the UI.
 4. **Anchor.** The hash goes on-chain, the ciphertext does not. Public: keccak256 of the blob and a transaction hash. Sealed: the blob never enters calldata.
 5. **Enclave.** Unseal, query, price, reduce, sign, then wipe. Public: "processing". Sealed: the balance, the asset mix, the account identifier.
 6. **Attested, then borrow.** Public: tier, expiry, nullifier, build hash. Sealed: everything else, permanently.
+
+                         USER CREDENTIAL
+                                |
+                                v
+                         +-------------+
+                         |     HPKE    |
+                         |  Encryption |
+                         +------+------+
+                                |
+                                v
+                      CONFIDENTIAL TEE
+                                |
+                 +--------------+--------------+
+                 |                             |
+                 v                             v
+             PRIVATE                       PUBLIC
+             DISCARDED                     OUTPUT
+                 |                             |
+        +--------+--------+             +------+--------+
+        |                 |             |               |
+        +-----------+     +-----------+   +---------+    +---------+
+        | API key   |     | API secret|   | Wallet  |    | Tier    |
+        +-----------+     +-----------+   +---------+    +---------+
+        | Exchange  |     | Exact     |   | Expiry  |    |Nullifier|
+        |           |     | balance   |   |         |    |Code hash|
+        | Asset mix |     | Account ID|   |         |    |         |
+        +-----------+     +-----------+   +---------+    +---------+
+
+
 
 Four details carry the security.
 
@@ -58,6 +92,31 @@ After all six stages the chain knows roughly 2.5 bits about Maya's wealth. That 
 **The measurement registry** is an on-chain whitelist of trusted code hashes, checked before the browser encrypts anything. Without it, "trust the code, not the operator" is unverifiable, because the operator would be the party telling you which hash to trust.
 
 **Coston2** hosts the registry, the pool and the instruction sender. It anchors requests, stores attestations and enforces the tier cap at drawdown. Without it the enclave's output is a dashboard receipt, not a credit decision.
+
+
+                         FLARE
+                           │
+          ┌────────────────┼────────────────┐
+          │                │                │
+          ▼                ▼                ▼
+        FCC               FTSO           Coston2
+          │                │                │
+          │                │                ├── Registry
+          │                │                ├── LendingPool
+          │                │                └── InstructionSender
+          │                │
+          ▼                ▼
+    Confidential        Canonical
+      Compute            Pricing
+          │                │
+          └───────┬────────┘
+                  ▼
+            SOLVENCY PROOF
+                  │
+                  ▼
+           On-chain credit
+
+
 
 ## What was newly built
 
