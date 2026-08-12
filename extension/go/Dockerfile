@@ -82,16 +82,19 @@ COPY --chmod=755 --chown=65532:65532 --from=builder /app/extension-tee /app/exte
 # overrides it via MODE=${MODE:-1}.
 #
 # For a real Confidential Space deploy this MUST be 0 — FTDC rejects simulated
-# attestation. See docs/deployment-steps.md §5. Keep this value identical across
-# go/, python/ and typescript/ Dockerfiles.
-ENV MODE=1 CONFIG_PORT=5501 SIGN_PORT=7701 EXTENSION_PORT=7702
+# attestation. See docs/confidential-space.md §1 and REAL-VISION.md. Keep this
+# value identical across go/, python/ and typescript/ Dockerfiles.
+#
+# ALLOWED_ORIGINS is the CORS allowlist for the browser-facing endpoints,
+# comma-separated (e.g. "https://vaultproof.xyz"). Empty means any origin.
+ENV MODE=1 CONFIG_PORT=5501 SIGN_PORT=7701 EXTENSION_PORT=7702 ALLOWED_ORIGINS=""
 
 # match tee-node: run as root (USER 0:0) — the TEE workload itself is the isolation boundary
 USER 0:0
 
 # confidential space launch policy label: allow the operator to override these env vars at workload launch
 # without this, the confidential space VM rejects overrides at attestation time and the values baked here are final
-LABEL "tee.launch_policy.allow_env_override"="LOG_LEVEL,PROXY_URL,INITIAL_OWNER,EXTENSION_ID,CHAIN_URL,MODE,CONFIG_PORT,SIGN_PORT,EXTENSION_PORT"
+LABEL "tee.launch_policy.allow_env_override"="LOG_LEVEL,PROXY_URL,INITIAL_OWNER,EXTENSION_ID,CHAIN_URL,CHAIN_ID,MODE,CONFIG_PORT,SIGN_PORT,EXTENSION_PORT,ALLOWED_ORIGINS"
 
 EXPOSE 5501 7701 7702
 

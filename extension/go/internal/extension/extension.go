@@ -34,10 +34,17 @@ type Extension struct {
 	// this process; the public half goes into the attestation quote.
 	keys *vaultproof.EnclaveKeyPair
 
-	// measurement identifies the running image. In a real Confidential Space
-	// deployment this comes from the platform; in simulated mode it is the
-	// build's own tag hash, and the quote reports mode 1 so the browser can
+	// measurement identifies the running image, and is guarded by mu because
+	// the launcher is the authority on it and may only answer after boot.
+	//
+	// On Confidential Space this is the image digest the launcher signed —
+	// never a value this container chose for itself. Off it, it falls back to
+	// the build's own tag hash and the quote reports mode 1, so the browser can
 	// tell the difference rather than being lied to.
+	//
+	// It MUST be the same string the browser saw in the quote: both sides put
+	// it in the HPKE info (vaultproof.SealInfo), so a drift of one character
+	// means every unseal fails with no useful error.
 	measurement string
 
 	prices vaultproof.Prices
@@ -56,6 +63,12 @@ func New(extensionPort, signPort int) *Extension {
 	e.keys = keys
 	e.measurement = resolveMeasurement()
 
+	// Ask the launcher who we are, before serving anything. On Confidential
+	// Space the socket exists from container start, so this normally settles
+	// the measurement once and for all; if it does not, quoteHandler adopts it
+	// on the first successful token instead.
+	e.adoptLauncherMeasurement(context.Background())
+
 	// FTSO pricing is resolved lazily: a chain that is briefly unreachable at
 	// boot should not stop the extension from starting and serving /quote.
 	e.prices = newLazyPrices(config.ChainURL)
@@ -66,8 +79,44 @@ func New(extensionPort, signPort int) *Extension {
 	mux.HandleFunc("POST /sealed", e.sealedHandler)
 	mux.HandleFunc("POST /action", e.actionHandler)
 
-	e.Server = &http.Server{Addr: fmt.Sprintf(":%d", extensionPort), Handler: mux}
+	// The browser talks to /quote and /sealed directly from the user's tab, so
+	// the mux is wrapped rather than each handler setting its own headers.
+	e.Server = &http.Server{Addr: fmt.Sprintf(":%d", extensionPort), Handler: withCORS(mux)}
 	return e
+}
+
+// currentMeasurement returns the identity of the running code.
+func (e *Extension) currentMeasurement() string {
+	e.mu.RLock()
+	defer e.mu.RUnlock()
+	return e.measurement
+}
+
+// adoptLauncherMeasurement replaces the measurement with the one the
+// Confidential Space launcher signed.
+//
+// This is the value the browser binds its HPKE seal to, because it is the value
+// the browser saw in the quote. Keeping the boot-time fallback here instead
+// would mean the two sides derive different `info` strings and every unseal
+// fails — the same shape of silent mismatch that the OPType keccak bug had.
+func (e *Extension) adoptLauncherMeasurement(ctx context.Context) {
+	ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
+	defer cancel()
+
+	token, err := vaultproof.FetchAttestationToken(ctx, "0x"+hex.EncodeToString(e.keys.PublicKey()))
+	if err != nil {
+		return // Not on Confidential Space, or the launcher refused.
+	}
+	claims, err := vaultproof.ParseTokenClaims(token)
+	if err != nil || claims.Submods.Container.ImageDigest == "" {
+		return
+	}
+
+	digest := normaliseDigest(claims.Submods.Container.ImageDigest)
+
+	e.mu.Lock()
+	e.measurement = digest
+	e.mu.Unlock()
 }
 
 // stateHandler() structure is boilerplate but update the State field mapping to match your Extension fields.
@@ -104,7 +153,7 @@ func (e *Extension) quoteHandler(w http.ResponseWriter, r *http.Request) {
 	// this enclave's public key as the nonce. A fresh token per request means
 	// the browser is checking the key it is about to encrypt to, right now,
 	// rather than a quote minted at boot and replayed for hours.
-	quote, mode, measurement := "", 1, e.measurement
+	quote, mode, measurement := "", 1, e.currentMeasurement()
 
 	ctx, cancel := context.WithTimeout(r.Context(), 10*time.Second)
 	defer cancel()
@@ -118,6 +167,12 @@ func (e *Extension) quoteHandler(w http.ResponseWriter, r *http.Request) {
 		if parseErr == nil && claims.Submods.Container.ImageDigest != "" {
 			quote, mode = token, 0
 			measurement = normaliseDigest(claims.Submods.Container.ImageDigest)
+
+			// Serve and unseal under the same identity. The browser is about
+			// to bind its HPKE info to this exact string.
+			e.mu.Lock()
+			e.measurement = measurement
+			e.mu.Unlock()
 		} else {
 			// A token we cannot read is a token we will not vouch for.
 			mode = 1
@@ -247,7 +302,10 @@ func (e *Extension) processAttestSolvency(action teetypes.Action, df *instructio
 	ctx, cancel := context.WithTimeout(context.Background(), config.ExchangeTimeout)
 	defer cancel()
 
-	info := vaultproof.SealInfo(e.measurement, config.ChainID)
+	// Must be the same measurement the browser read out of the quote — it is
+	// half of the HPKE info string on both sides.
+	measurement := e.currentMeasurement()
+	info := vaultproof.SealInfo(measurement, config.ChainID)
 
 	att, err := vaultproof.AttestSolvency(ctx, e.keys, e.prices, blob, info)
 	if err != nil {
@@ -265,7 +323,7 @@ func (e *Extension) processAttestSolvency(action teetypes.Action, df *instructio
 		ValidForSeconds: config.AttestationValiditySeconds,
 		Nullifier:       "0x" + hex.EncodeToString(att.Nullifier[:]),
 		Nonce:           req.Nonce,
-		Measurement:     e.measurement,
+		Measurement:     measurement,
 	}
 	data, _ := json.Marshal(resp)
 

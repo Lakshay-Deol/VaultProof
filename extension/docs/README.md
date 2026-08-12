@@ -14,6 +14,14 @@ Standard layout shared by every FCC extension example. Validate with
 | [architecture.md](architecture.md) | how this extension works |
 | [cloudflared.md](cloudflared.md) | expose a local proxy for testnet registration |
 
+## VaultProof-specific
+
+| Doc | Answers |
+|---|---|
+| [coston2-simulated.md](coston2-simulated.md) | **start here** — the real FCC path on Coston2 with SIMULATED_TEE, zero cost |
+| [confidential-space.md](confidential-space.md) | deploy to GCP Confidential Space yourself, and whitelist the measurement |
+| [flare-handoff.md](flare-handoff.md) | hand the image to a VM operator (premise unconfirmed — the FCC FAQ implies self-hosting) |
+
 `deployment-steps.md` must cover the platform-wide traps, because they are not
 obvious and every extension hits them:
 

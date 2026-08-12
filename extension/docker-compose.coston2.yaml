@@ -12,6 +12,15 @@ services:
       # match the proxy's chain_id (114) and the on-chain registry, or signature
       # verification fails (InvalidTeePublicKeyOrSignature / proxy panic).
       - CHAIN_ID=${CHAIN_ID:-114}
+      # CORS allowlist for the browser-facing endpoints below. Empty = any origin.
+      - ALLOWED_ORIGINS=${ALLOWED_ORIGINS:-}
+    # VaultProof only: /quote and /sealed are called by the user's BROWSER, not
+    # by FTDC providers, so the extension port needs a host binding — the base
+    # compose exposes only the proxy (6664). Bound to loopback by default; a
+    # public deployment routes HTTPS to it (see docs/coston2-simulated.md) and
+    # sets ALLOWED_ORIGINS to the frontend's origin.
+    ports:
+      - "${EXTENSION_BIND:-127.0.0.1:7702}:7702"
 
 networks:
   default:

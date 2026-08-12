@@ -131,9 +131,12 @@ Built during the program:
 - **The whole frontend:** four pages, six pipeline stages, mock and live adapter seams, a state machine, real in-browser HPKE, and the design system. The directory was empty at the start of the program.
 - **Both live adapters:** viem and wagmi against the deployed contracts, and the enclave client against the quote and sealed endpoints.
 - **The attack simulator.** Stage 2 ships a "Try breaking it" control that runs a substituted relay key and an unwhitelisted build against the same verifier the honest path uses. Both hard-stop with no override.
-- **73 tests:** 25 Go, 11 Foundry, 33 web unit, 4 live against Coston2.
+- **Browser-reachable enclave endpoints.** `/quote` and `/sealed` are called by the user's browser directly, which stock FCC never needs — so the enclave serves its own CORS with an `ALLOWED_ORIGINS` allowlist. CORS is not treated as a security boundary here: nothing on those paths carries ambient authority, and the key binding inside the signed quote is what makes an untrusted relay safe.
+- **77 tests:** 29 Go, 11 Foundry, 33 web unit, 4 live against Coston2.
 
-Three real bugs were found and fixed along the way. The scaffold's `teeutils.ToHash` right-pads a string into a `bytes32` while the contract and frontend use keccak256, and the two disagree completely with a silent failure. Blob delivery was keyed by SHA-256 while the browser anchors keccak256, so the enclave would never have found the blob. And the attestation check verified the token's binding but never its signature, so a forged token with matching fields would have passed.
+Five real bugs were found and fixed along the way. The scaffold's `teeutils.ToHash` right-pads a string into a `bytes32` while the contract and frontend use keccak256, and the two disagree completely with a silent failure. Blob delivery was keyed by SHA-256 while the browser anchors keccak256, so the enclave would never have found the blob. The attestation check verified the token's binding but never its signature, so a forged token with matching fields would have passed.
+
+The last two are the same shape as the first — a value that has to be identical on both sides, and isn't. The enclave opened sealed blobs using a boot-time measurement read from environment variables, while the browser binds its HPKE context to the measurement it read from the quote; on Confidential Space the launcher supplies a different value, so **every unseal would have failed** with an error that named nothing useful. The enclave now adopts the launcher-signed digest as its identity. And `wagmi` was configured with `storage: null` alongside `ssr: true`, an unsupported pair that threw on every page load and aborted the rest of wallet setup.
 
 ## Deployment details
 
@@ -163,11 +166,76 @@ Each part can be checked independently:
 - `go run ./cmd/smoke` — seals as the browser does, attests, checks replay
 - `cd web && npm run test:live` — 4 tests against the real Coston2 deployment
 
-The smoke harness proves the two HPKE implementations agree. It fails at `unseal:` if they ever drift and at `query:` if the credential simply is not a real Kraken key, so the message tells you which.
+### What has actually been executed
+
+The distinction between "written" and "run" is the one worth being precise about, so it is
+drawn explicitly rather than left to the reader.
+
+**Run, reproducible with the commands above:**
+
+The enclave serves a live quote, and the two independent HPKE implementations — `hpke-js`
+in the browser, `cloudflare/circl` in Go — agree on the wire. The smoke harness seals
+exactly as the browser does, delivers out of band, and drives an `ATTEST_SOLVENCY`
+instruction through the real handler:
+
+```
+1. quote        measurement=0x7661756c7470… mode=1
+   enclave key  0x44615090f74ffa7924…
+2. sealed       112 bytes, requestHash=0x1f77a2bc5e5e…
+3. delivered    accepted=true
+4. attest       status=0 log="error: query: exchange rejected the credential"
+
+RESULT: unseal OK — HPKE roundtrip through the live server worked.
+        Failed at the exchange step, as expected for a fake key.
+5. replay       refused — blob was consumed on first use
+```
+
+Step 4 is the interesting one: `unseal` succeeded and the run stopped at `query`, which is
+exactly right for a credential that is not a real Kraken key. Had the two HPKE sides
+drifted, it would have failed one step earlier and said so. Step 5 confirms the replay
+defence — the ciphertext is deleted on read, so the second attempt finds nothing.
+
+The browser-facing endpoints answer with the CORS headers a cross-origin `fetch` needs,
+including the preflight that `POST /sealed` triggers:
+
+```
+$ curl -i -X OPTIONS -H "Origin: http://localhost:3000" … /sealed
+HTTP/1.1 204 No Content
+Access-Control-Allow-Methods: GET, POST, OPTIONS
+Access-Control-Allow-Headers: Content-Type
+```
+
+Test suites, all green: **29 Go** (`go test ./...`), **11 Foundry**
+(`FOUNDRY_PROFILE=vaultproof forge test`), **33 web unit** (`npm test`), **4 live against
+the deployed Coston2 contracts** (`npm run test:live`). `go vet` is clean.
+
+On-chain, from the deployment above: a T3 attestation delivered, 15,000 tUSDC borrowed, and
+a 50,000 attempt reverted `over cap` — the contract refusing rather than trusting the front
+end.
+
+**Not run, and not claimed:**
+
+- **Real hardware attestation.** The code path is complete and on the real path, but it has
+  never executed on Confidential Space. Locally the enclave reports `mode: 1` and the UI
+  renders it as SIMULATED.
+- **The FCC on-chain instruction path**, end to end through a registered TEE machine. The
+  scaffold's ext-proxy requires Flare's indexer database, which is reachable only over
+  Flare's VPN. Blocked on access, not on code.
+
+[REAL-VISION.md](REAL-VISION.md) specifies what the second column requires, in the order it
+blocks.
 
 ## Honest limitations
 
+The demo in this repo runs in mock mode. **[REAL-VISION.md](REAL-VISION.md)** specifies the
+system it is a model of — the real architecture, what is already built and unexercised,
+what is missing in the order it blocks, and the risks that survive a successful deploy.
+
 **Hardware mode has never executed.** The attestation code is real and on the real path, and on Confidential Space it fetches a genuine AMD SEV-SNP-backed token that the browser verifies against Google. But it has not been run on that hardware, so no claim is made that it has. Locally it reports simulated mode and the UI renders it as such. Every failure branch fails closed to simulated rather than overclaiming.
+
+What *has* run is narrower and stated above: the enclave itself, its HPKE unseal against a browser-format blob, and its replay defence. The gap is the hardware root and the on-chain instruction path, not the enclave logic.
+
+**The FCC instruction path is blocked on infrastructure access, not on code.** The scaffold's ext-proxy reads Flare's indexer database, which sits behind Flare's VPN. Without it the proxy cannot start, so no TEE machine can reach `PRODUCTION` status and no dispatched instruction can be delivered. `SIMULATED_TEE=true` is supported on Coston2 and would otherwise make this path reachable at zero cost — see [extension/docs/coston2-simulated.md](extension/docs/coston2-simulated.md).
 
 **Attestation freshness.** A quote proves the code that booted, not the code running at request time. Per-request tokens narrow this; nothing closes it.
 

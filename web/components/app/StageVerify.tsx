@@ -73,6 +73,11 @@ export function StageVerify() {
     running.current = true;
     startVerify();
 
+    // Which check is in flight. A throw skips the per-check `fail` branches
+    // below, so without this the row that was running keeps its spinner
+    // forever and the card reads "still trying" and "stopped" at once.
+    let inFlight: CheckId = "quote";
+
     try {
       // 1 — fetch and sanity-check the quote.
       setCheck("quote", { status: "running" });
@@ -87,6 +92,7 @@ export function StageVerify() {
       setCheck("quote", { status: "pass", note: shape.note });
 
       // 2 — the binding that stops a substituted relay key.
+      inFlight = "signature";
       setCheck("signature", { status: "running" });
       await new Promise((r) => setTimeout(r, 700));
       const sig = await checkSignatureBinding(fetched);
@@ -98,6 +104,7 @@ export function StageVerify() {
       setCheck("signature", { status: "pass", note: sig.note });
 
       // 3 — ask the chain which builds are trusted.
+      inFlight = "whitelist";
       setCheck("whitelist", { status: "running" });
       const list = await getChainClient().getWhitelistedMeasurements();
       const wl = checkWhitelist(fetched, list);
@@ -112,6 +119,9 @@ export function StageVerify() {
       finishVerify();
     } catch (err) {
       const message = err instanceof Error ? err.message : "Verification failed.";
+      // Land the error on the row it happened to, so the failure is legible
+      // as "this check broke" rather than only as a banner underneath.
+      setCheck(inFlight, { status: "fail", error: message });
       fail("verify", message);
     } finally {
       running.current = false;

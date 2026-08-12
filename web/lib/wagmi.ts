@@ -35,10 +35,15 @@ export const wagmiConfig = createConfig({
     [coston2.id]: http(),
   },
   ssr: true,
-  // No persisted connection state: every visit starts at stage 1 with an
-  // explicit connect. Without this, wagmi writes the last connector to
-  // localStorage and silently reconnects on load, skipping the connect stage.
-  storage: null,
+  // NOTE: do not set `storage: null` here. With `ssr: true`, wagmi's onMount
+  // calls `config._internal.store.persist.rehydrate()` — and a null storage
+  // builds the store without the persist middleware, so that throws
+  // "Cannot read properties of undefined (reading 'rehydrate')" on every page
+  // load and aborts the rest of onMount.
+  //
+  // "Never reconnect silently; connecting is stage 1" is expressed by
+  // `reconnectOnMount={false}` on the provider (app/providers.tsx), which is
+  // the supported way to say it and does not fight SSR hydration.
 });
 
 export const HAS_WALLETCONNECT = Boolean(projectId);
