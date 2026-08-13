@@ -1,6 +1,23 @@
 export const REPO_URL = "https://github.com/Lakshay-Deol/VaultProof";
 
-export const KRAKEN_API_KEY_URL = "https://www.kraken.com/u/security/api";
+/**
+ * Where each exchange issues API keys, and the exact read-only permission to
+ * ask for. Named per exchange because the wording is not interchangeable —
+ * telling a Binance user to look for "Query Funds" sends them hunting for a
+ * setting that does not exist.
+ */
+export const EXCHANGE_KEY_HELP = {
+  kraken: {
+    url: "https://www.kraken.com/u/security/api",
+    where: "Kraken → Security → API",
+    permission: "Query Funds",
+  },
+  binance: {
+    url: "https://www.binance.com/en/my/settings/api-management",
+    where: "Binance → Account → API Management",
+    permission: "Enable Reading",
+  },
+} as const;
 
 export const FLARE_FCC_DOCS = "https://dev.flare.network";
 

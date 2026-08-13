@@ -10,16 +10,19 @@ import { Mono } from "@/components/ui/Mono";
 import { DEMO_CREDENTIAL } from "@/lib/adapters/mock/fixtures";
 import { randomHex32 } from "@/lib/adapters/mock/util";
 import { CHAIN_ID } from "@/lib/config/chain";
-import { KRAKEN_API_KEY_URL } from "@/lib/config/links";
+import { EXCHANGE_KEY_HELP } from "@/lib/config/links";
 import { IS_MOCK } from "@/lib/config/mode";
 import { exportPublicKey, generateKeyPair, seal, sealInfo } from "@/lib/crypto/hpke";
 import { usePipeline } from "@/lib/store/pipeline";
 import { holdSealed } from "@/lib/store/sealed";
 import { bytesToHex, cx } from "@/lib/utils/format";
 
+// Must agree with vaultproof.SupportedExchanges() in the enclave — an option
+// enabled here without an adapter there fails at the query step, after the
+// user has already sealed a credential.
 const EXCHANGES = [
   { id: "kraken", label: "Kraken", available: true },
-  { id: "binance", label: "Binance", available: false },
+  { id: "binance", label: "Binance", available: true },
   { id: "coinbase", label: "Coinbase", available: false },
 ] as const;
 
@@ -43,6 +46,10 @@ export function StageSeal() {
   const finishSeal = usePipeline((s) => s.finishSeal);
   const startAnchor = usePipeline((s) => s.startAnchor);
   const fail = usePipeline((s) => s.fail);
+
+  // Falls back to Kraken's wording only if the store ever holds an exchange
+  // with no help entry; the selector cannot produce one today.
+  const keyHelp = EXCHANGE_KEY_HELP[exchange as keyof typeof EXCHANGE_KEY_HELP] ?? EXCHANGE_KEY_HELP.kraken;
 
   const keyRef = useRef<HTMLInputElement>(null);
   const secretRef = useRef<HTMLInputElement>(null);
@@ -224,15 +231,15 @@ export function StageSeal() {
         <p className="text-[13px] leading-relaxed text-ink-muted">
           Read-only scope required. Create one under{" "}
           <a
-            href={KRAKEN_API_KEY_URL}
+            href={keyHelp.url}
             target="_blank"
             rel="noreferrer"
             className="text-ink underline decoration-line underline-offset-4 transition-colors hover:decoration-flare"
           >
-            Kraken → Security → API
+            {keyHelp.where}
           </a>{" "}
-          with <span className="font-mono text-[12.5px]">Query Funds</span> and nothing else. A
-          key with withdrawal rights is refused by the enclave.
+          with <span className="font-mono text-[12.5px]">{keyHelp.permission}</span> and nothing
+          else. A key with withdrawal rights is refused by the enclave.
         </p>
 
         <div className="flex flex-wrap items-center gap-3 pt-1">

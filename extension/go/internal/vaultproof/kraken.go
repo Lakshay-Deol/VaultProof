@@ -15,14 +15,16 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"extension-scaffold/internal/config"
 )
 
 // Kraken's private API. Read-only key permissions are all VaultProof ever
 // needs, and the UI says so at the point the user pastes one in.
-const (
-	krakenBaseURL    = "https://api.kraken.com"
-	krakenBalancePth = "/0/private/Balance"
-)
+//
+// The base URL lives in config so a stub can stand in for a simulated run;
+// config.DefaultExchangeBaseURL is what production always uses.
+const krakenBalancePth = "/0/private/Balance"
 
 // Balances maps an asset ticker to a quantity. Kraken returns decimal strings.
 type Balances map[string]float64
@@ -39,6 +41,17 @@ type krakenResponse struct {
 // step that failed and never echo the response body, the key, or the
 // signature — a Kraken error string can contain the key prefix.
 func FetchKrakenBalances(ctx context.Context, apiKey, apiSecret string) (Balances, error) {
+	// Checked here, before the credential is even decoded, so that a hardware
+	// enclave with a tampered endpoint never reaches the network at all.
+	if err := CheckExchangeOverride(); err != nil {
+		return nil, err
+	}
+
+	base := config.ExchangeBaseURL("kraken")
+	if base == "" {
+		return nil, errors.New("no endpoint configured for kraken")
+	}
+
 	secret, err := base64.StdEncoding.DecodeString(apiSecret)
 	if err != nil {
 		return nil, errors.New("API secret is not valid base64")
@@ -57,7 +70,7 @@ func FetchKrakenBalances(ctx context.Context, apiKey, apiSecret string) (Balance
 	defer Zeroize(sig)
 
 	req, err := http.NewRequestWithContext(
-		ctx, http.MethodPost, krakenBaseURL+krakenBalancePth, strings.NewReader(body),
+		ctx, http.MethodPost, base+krakenBalancePth, strings.NewReader(body),
 	)
 	if err != nil {
 		return nil, fmt.Errorf("building exchange request: %w", err)

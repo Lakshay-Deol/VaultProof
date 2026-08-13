@@ -7,6 +7,7 @@ import { Badge, TierBadge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { StatusMark, Sweep } from "@/components/ui/Status";
 import { getChainClient, getEnclaveClient } from "@/lib/adapters";
+import { IS_MOCK } from "@/lib/config/mode";
 import {
   MOCK_LINE_ITEMS,
   MOCK_TIER,
@@ -152,13 +153,28 @@ export function StageProcessing() {
   );
 }
 
-/** The actual arithmetic from spec §5, step 10. */
+/**
+ * The arithmetic from spec §5, step 10 — illustrative only.
+ *
+ * These line items are MOCK_LINE_ITEMS. They are a worked example of what the
+ * enclave does, not a readout of what it did: the enclave deliberately does not
+ * stream its internals, because a per-step channel out of a confidential VM is
+ * a side channel (see lib/adapters/live/enclave.ts).
+ *
+ * So this table renders in mock mode only. Showing it in live mode put a
+ * fabricated portfolio under an "on-chain prices" badge, which is precisely the
+ * overclaiming the rest of this project refuses to do — the numbers were not
+ * the user's, the prices were not read from FTSO, and the total was not what
+ * any tier was derived from.
+ */
 function FtsoMath() {
+  if (!IS_MOCK) return null;
+
   return (
     <div className="mt-3 animate-fade-up overflow-hidden rounded border border-line bg-surface-alt">
       <div className="flex items-center justify-between border-b border-line px-4 py-2">
-        <p className="label">FTSO feeds · Coston2</p>
-        <Badge tone="flare">On-chain prices</Badge>
+        <p className="label">FTSO feeds · illustrative</p>
+        <Badge tone="flare">Example figures</Badge>
       </div>
       <table className="w-full border-collapse font-mono text-[13px]">
         <tbody>
@@ -186,9 +202,15 @@ function FtsoMath() {
 /**
  * The dollar figure blurs away and a tier takes its place. Held long enough to
  * read on a screen recording without the viewer having to scrub back.
+ *
+ * Mock mode only, for the same reason as FtsoMath: the amount and the tier here
+ * are MOCK_TOTAL_USD and MOCK_TIER. In live mode the enclave never reveals the
+ * total to the browser — that is the entire point of the reduction — and the
+ * real tier only becomes knowable at stage 6, read back from SolvencyRegistry.
+ * Rendering this in live mode showed a tier the enclave had not computed.
  */
 function Reduction({ dissolved, enabled }: { dissolved: boolean; enabled: boolean }) {
-  if (!enabled) return null;
+  if (!enabled || !IS_MOCK) return null;
   return (
     <div className="mt-3 animate-fade-up rounded border border-line bg-surface-alt px-4 py-5">
       <div className="flex items-center justify-center gap-6 sm:gap-10">

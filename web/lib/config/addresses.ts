@@ -27,19 +27,28 @@ export interface ContractEntry {
 }
 
 /**
- * Deployed on Coston2 (2026-08-12, deployer 0xEa0de9C49d2E935a2c3757F82a42f1e00ab2730e),
- * verified on Blockscout. Source of truth: contracts/deployment-addresses.vaultproof.json,
- * written by script/vaultproof/DeployVaultProof.s.sol.
+ * Deployed on Coston2 (2026-08-13, deployer 0xEa0de9C49d2E935a2c3757F82a42f1e00ab2730e).
+ * Redeployed in full because SolvencyRegistry stores the instruction sender as
+ * an immutable, so fixing the sender meant replacing the registry and pool with
+ * it. Extension 66215 is registered against this sender and routing is wired.
+ *
+ * Source of truth: contracts/deployment-addresses.vaultproof.json, written by
+ * script/vaultproof/DeployVaultProof.s.sol.
  */
 const live: Record<ContractKey, `0x${string}`> = {
-  solvencyRegistry: "0xD653bE4c296E2462D22254953D2Aaa7D4DA1917C",
-  lendingPool: "0x3b7c700cd2d812348de61BD13b28e601C661b5Da",
-  instructionSender: "0x45540745B838F6f3feC76E662b5539BcB82339c3",
+  solvencyRegistry: "0xeB50b0128528307F7a67b2a58Ab704C0882fAC0C",
+  lendingPool: "0xa7D6eCdF3Ec224bE2c8C1b2C58ab45bd269D7cCB",
+  // VaultProofInstructionSender — the one with submitRequest. Not the same
+  // contract as extension/contracts/InstructionSender.sol, which pre-build.sh
+  // deploys for the scaffold's SAY_HELLO round-trip and which has no
+  // submitRequest at all. SolvencyRegistry stores this address as an immutable,
+  // so it cannot be swapped without redeploying the registry.
+  instructionSender: "0x56d517C498593dCE3706C44C72f5E5b5d0362b3e",
   // VaultProof's own TeeMeasurementRegistry: Flare's Coston2 protocol
   // contracts do not yet expose an `isWhitelisted` measurement surface, so we
   // deploy the whitelist ourselves and swap to the protocol registry later.
-  teeExtensionRegistry: "0xe1788fF42Fc5a5B4012d5af6f8B51fe3a3eF36f7",
-  usdc: "0x459c634EE948f6D486b714E06C1F186034F2e7A4",
+  teeExtensionRegistry: "0x2B5babD3acC1564a20f12aB6ac494De9919d546F",
+  usdc: "0x94973B048F1b5cE9d94086CbAc5e3b810d2395d9",
 };
 
 /**

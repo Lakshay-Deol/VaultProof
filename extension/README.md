@@ -380,8 +380,8 @@ Coston2 is Flare's public testnet. Unlike local dev (which runs against a Hardha
 ### Prerequisites
 
 - A **funded Coston2 account** — you need a private key with testnet C2FLR for gas. Get testnet tokens from the [Coston2 faucet](https://faucet.flare.network/coston2).
-- **ngrok** (or similar tunneling tool) — the TEE proxy must be publicly reachable so data providers can deliver cosigned responses. Install from [ngrok.com](https://ngrok.com).
-- **Indexer DB credentials** — the proxy needs access to a Flare indexer database to fetch signing policies. Ask the Flare team for credentials, or use the values in the example config.
+- **A stable public HTTPS hostname** — the TEE proxy must be publicly reachable so data providers can deliver cosigned responses, and the URL is stored on-chain at registration, so it must survive restarts. Tailscale Funnel works without owning a domain; ngrok's free tier does not, because its interstitial warning page blocks provider POSTs. See [docs/coston2-simulated.md](docs/coston2-simulated.md) §1.
+- **Indexer DB credentials** — the proxy needs access to a Flare indexer database to fetch signing policies. Coston2 needs **no VPN**. Take the host and database name from [Build Your First Extension](https://dev.flare.network/fcc/guides/getting-started) and request read-only credentials from Flare support. The credentials in the older example configs have been rotated and the host they name is dead.
 
 ### 1. Configure `.env`
 

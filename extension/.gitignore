@@ -61,3 +61,6 @@ DEPLOYMENT.md
 
 config/**/*.log
 config/register-tee.state
+# Built helper binaries (demo-bridge, stub-exchange). Source is tracked; the
+# 13MB artefacts are not.
+bin/

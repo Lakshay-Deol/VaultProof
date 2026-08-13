@@ -50,15 +50,14 @@ func AttestSolvency(
 	if len(cred.APIKey) == 0 || len(cred.APISecret) == 0 {
 		return Attestation{}, errors.New("unseal: sealed payload was missing credential fields")
 	}
-	if cred.Exchange != "kraken" {
-		// Named exchanges only: an arbitrary endpoint would let a user point
-		// the enclave at a server they control and mint their own tier.
-		return Attestation{}, fmt.Errorf("unsupported exchange")
-	}
-
 	// --- 2. query --------------------------------------------------------
-	balances, err := FetchKrakenBalances(ctx, string(cred.APIKey), string(cred.APISecret))
+	// Named exchanges only — FetchBalances refuses anything it has no adapter
+	// for, so an arbitrary endpoint in the sealed payload cannot be reached.
+	balances, err := FetchBalances(ctx, cred.Exchange, string(cred.APIKey), string(cred.APISecret))
 	if err != nil {
+		if errors.Is(err, ErrUnsupportedExchange) {
+			return Attestation{}, err
+		}
 		return Attestation{}, fmt.Errorf("query: %w", err)
 	}
 

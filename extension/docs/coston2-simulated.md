@@ -16,43 +16,59 @@ ordering plus the parts specific to us.
 | --- | --- |
 | Go, Docker | free (`sudo snap install go --classic`, `sudo snap install docker`) |
 | Gas (register extension + TEE, anchor, borrow) | free — Coston2 faucet C2FLR |
-| Indexer DB access for the proxy `[db]` block | free, **but gated** — see §1 |
-| Stable public HTTPS hostname | free **if** one of §2's options works for you |
+| Indexer DB access for the proxy `[db]` block | free — credentials from Flare support, no VPN |
+| Stable public HTTPS hostname | free — see §1 |
 
-## 1. Get the two external inputs first
+## 1. Get the one external input first
 
-Everything else is mechanical; these two can stall you indefinitely, so start them first.
-Neither responds to effort — both are grants from Flare.
+Everything else is mechanical. Only the hostname can stall you, so start it first.
 
-**Indexer DB access — the hardest blocker.** The ext-proxy reads Flare's Coston2 indexer at
-`35.241.249.150:3306`, and `deployment-steps.md` lists **VPN access to Flare's network** as
-a prerequisite. The host is not reachable from the open internet, so credentials alone are
-not enough. Without the proxy running, no TEE machine reaches `PRODUCTION` and no dispatched
-instruction is ever delivered — which presents as a machine stuck at status 1 and 404s from
-the FTDC proxy.
+**Indexer DB access — not a blocker, despite what older docs say.** The ext-proxy reads
+Flare's Coston2 indexer, and **Coston2 requires no VPN**: per
+[Flare's FCC troubleshooting guide](https://dev.flare.network/fcc/troubleshooting), "Coston2
+access does not require a VPN… Coston uses different credentials and adds a VPN requirement,
+and FCC development is on Coston2." The scaffold inherited Coston's prerequisite by mistake.
 
-Ask in the hackathon channel for **both** the VPN access and the database name; credentials
-are distributed there too. Confirm reachability before doing anything else:
+Take the host and database name from
+[Build Your First Extension](https://dev.flare.network/fcc/guides/getting-started), and
+request read-only credentials through Flare support. **Do not use `35.241.249.150` from
+older docs** — it is dead (answers ICMP, refuses 3306) and those credentials were rotated.
+
+Confirm reachability before doing anything else, substituting the documented host:
 
 ```bash
-timeout 5 bash -c 'cat < /dev/null > /dev/tcp/35.241.249.150/3306' && echo reachable
+mysql -h <documented-host> -u <user> -p -e "SELECT MAX(number) FROM blocks;" indexer
 ```
 
-**A stable public HTTPS hostname.** The URL is stored **on-chain** at registration and
-providers keep POSTing to it; a quick-tunnel URL that rotates on restart strands the
-registration (per the FCC FAQ — this overrides the quick-tunnel default in
+The proxy needs the block head within **140 seconds** of chain head (`liveness.go`), plus
+`Relay.SigningPolicyInitialized` logs, `VoterRegistry.VoterRegistered` logs, and
+`FlareSystemsManager.signNewSigningPolicy` transactions. Flare's instance indexes exactly
+those, so a successful connection is effectively the whole check.
+
+**A stable public HTTPS hostname — the real blocker.** The URL is stored **on-chain** at
+registration and providers keep POSTing to it; a quick-tunnel URL that rotates on restart
+strands the registration (per the FCC FAQ — this overrides the quick-tunnel default in
 [cloudflared.md](cloudflared.md)). Free options, in order of preference:
 
-1. **You own a domain** → Cloudflare **named** tunnel (free plan): add the domain to
+1. **No domain needed** → **Tailscale Funnel**. Gives a stable
+   `https://<machine>.<tailnet>.ts.net` with a valid public certificate, reachable by
+   anyone on the internet without a Tailscale account, and it works behind CGNAT with no
+   port-forwarding. Funnel is [available on all plans including free](https://tailscale.com/kb/1223/funnel)
+   and listens on 443, 8443 or 10000. Bandwidth limits are non-configurable but ample for
+   a demo. This is the best fit if you do not own a domain.
+2. **You own a domain** → Cloudflare **named** tunnel (free plan): add the domain to
    Cloudflare, `cloudflared tunnel create`, set `TUNNEL_ARGS=run --token …` in `.env` —
-   the scaffold's cloudflared compose supports named tunnels natively. Stable hostname,
-   no port-forwarding, works behind CGNAT.
-2. **No domain, home network allows inbound** → free DuckDNS subdomain + Caddy
-   auto-HTTPS + router port-forward of 443. Free, but dead on CGNAT (common on Indian
-   ISPs — if your router's WAN IP differs from `curl ifconfig.me`, you are CGNATed;
-   use option 1 or 3).
-3. **Neither** → Oracle Cloud Always Free VM ($0, card required for identity) or any
-   ~$5/mo VPS. This is the only path that can cost money.
+   the scaffold's cloudflared compose supports named tunnels natively.
+3. **Home network allows inbound** → free DuckDNS subdomain + Caddy auto-HTTPS + router
+   port-forward of 443. Dead on CGNAT (common on Indian ISPs — if your router's WAN IP
+   differs from `curl -4 ifconfig.me`, you are CGNATed; use option 1).
+4. **Last resort** → Oracle Cloud Always Free VM ($0, card required for identity) or any
+   ~$5/mo VPS. The only path that can cost money.
+
+**ngrok's free tier is unsuitable**, despite the static domain it now offers: free
+endpoints serve an interstitial warning page unless the caller sends an
+`ngrok-skip-browser-warning` header, and FTDC providers are independent operators who will
+never send it.
 
 ## 2. Fill the two gitignored config files
 
@@ -79,6 +95,14 @@ bash ./scripts/post-build.sh            # registers the TEE machine (rRap), reac
 ```
 
 Then route public HTTPS: `<hostname>` → port **6674** (proxy external; container 6664).
+With Tailscale Funnel that is `tailscale funnel 6674`, and the resulting
+`https://<machine>.<tailnet>.ts.net` is what goes in `EXT_PROXY_URL`.
+
+Note which port serves what, because the FCC FAQ cites the scaffold's *default* ports
+rather than this repo's: `/instruction` and `/info` are on the **external** port (container
+6664, host 6674), while `/ready`, `/healthy` and `/startup` are on the **internal** port
+(container 6663, host 6673). The FAQ's `:6661/ready` is the default config's internal port;
+here it is `localhost:6673/ready`.
 
 ## 4. The gates that fail silently
 
@@ -119,6 +143,35 @@ Route a second HTTPS path or hostname to 7702 — e.g. `enclave.<host>` → 7702
 `proxy.<host>` → 6674. Any reverse proxy is fine; the browser trusts none of it (the key
 binding is inside the quote). Just don't strip the `Access-Control-Allow-Origin` header
 the extension sets.
+
+## 5a. Choosing an exchange
+
+Two adapters ship: **Kraken** and **Binance**. The sealed payload names one, and the
+enclave refuses anything else before making a request.
+
+From India, use **Binance**: it has been FIU-IND registered since August 2024 and is
+available to Indian users, while Kraken has been unregistered since December 2023. Create
+a key under Binance → Account → API Management with **Enable Reading** and nothing else.
+
+Binance is signed differently from Kraken — HMAC-SHA256 over the query string, hex, with
+the key in an `X-MBX-APIKEY` header — and the signature covers the query string exactly as
+transmitted, so the enclave builds that string once and never re-encodes it.
+
+If you have no exchange account at all, point the enclave at a stub instead:
+
+```bash
+# .env addition — simulated runs only
+VAULTPROOF_EXCHANGE_BASE_URL=https://your-stub.example
+```
+
+The stub must answer `POST /0/private/Balance` with
+`{"error":[],"result":{"XXBT":"1.5","ZUSD":"2000.0"}}`. Signature headers are sent but a
+stub need not verify them.
+
+This is refused on real hardware. `CheckExchangeOverride` fails closed when the
+Confidential Space launcher socket exists, so the override works only where there is no
+hardware claim to undermine, and `/quote` names the endpoint while it is active. Pricing
+still runs through FTSO, so the stub controls quantities, not valuations.
 
 ## 6. Flip the frontend
 

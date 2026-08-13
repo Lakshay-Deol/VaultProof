@@ -8,7 +8,11 @@ import {LendingPool} from "../../src/vaultproof/LendingPool.sol";
 import {MockUSDC} from "../../src/vaultproof/MockUSDC.sol";
 import {SolvencyRegistry} from "../../src/vaultproof/SolvencyRegistry.sol";
 import {TeeMeasurementRegistry} from "../../src/vaultproof/TeeMeasurementRegistry.sol";
-import {VaultProofInstructionSender} from "../../src/vaultproof/VaultProofInstructionSender.sol";
+import {
+    VaultProofInstructionSender,
+    ITeeExtensionRegistry,
+    ITeeMachineRegistry
+} from "../../src/vaultproof/VaultProofInstructionSender.sol";
 
 /// @notice Deploys the whole VaultProof stack in one broadcast and wires it up.
 ///
@@ -51,9 +55,24 @@ contract DeployVaultProof is Script {
         LendingPool pool = new LendingPool(address(registry), address(usdc));
 
         usdc.mint(address(pool), POOL_LIQUIDITY);
-        teeRegistry.list(measurement, "vaultproof-fce:v0.3.1 (simulated TEE)");
+        teeRegistry.list(measurement, "vaultproof-fce (simulated TEE)");
+
+        // FCC routing. Both point at Flare's FlareTeeManager diamond, which
+        // exposes the extension and machine registry facets at one address.
+        //
+        // Wired here rather than by hand: submitRequest silently skips the
+        // dispatch when these are unset, so a deployment that forgets them
+        // anchors hashes and never asks a TEE for anything — which is exactly
+        // the failure this deployment exists to fix.
+        address flareTeeManager = vm.envOr("FLARE_TEE_MANAGER", address(0));
+        if (flareTeeManager != address(0)) {
+            sender.setTeeExtensionRegistry(ITeeExtensionRegistry(flareTeeManager));
+            sender.setTeeMachineRegistry(ITeeMachineRegistry(flareTeeManager));
+        }
 
         vm.stopBroadcast();
+
+        console.log("FlareTeeManager wired:     ", flareTeeManager);
 
         console.log("MockUSDC:                  ", address(usdc));
         console.log("TeeMeasurementRegistry:    ", address(teeRegistry));

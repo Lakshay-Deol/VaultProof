@@ -114,8 +114,14 @@ export class LiveEnclaveClient implements EnclaveClient {
 
   /**
    * The enclave does not stream its internal steps — deliberately, since a
-   * per-step channel out of the enclave is a side channel. The UI mirrors the
-   * five steps on a timer and settles when the attestation count moves.
+   * per-step channel out of the enclave is a side channel. So the UI cannot
+   * show which step is running; it can only show that the run finished.
+   *
+   * What it must NOT do is mark the steps done on a timer. That is what this
+   * did before: it waited 1.5s per step and reported "done" regardless, so a
+   * dispatch that never reached the enclave rendered five green checks and a
+   * tier that had never been computed. The counter is the only evidence the
+   * browser has, and it now has to actually move.
    */
   async watchProcessing(
     requestId: string,
@@ -125,12 +131,34 @@ export class LiveEnclaveClient implements EnclaveClient {
     const steps: EnclaveStepId[] = ["unseal", "query", "price", "reduce", "sign"];
 
     const before = await this.#attestationCount();
+    for (const step of steps) onStep({ step, status: "running" });
 
-    for (const step of steps) {
-      onStep({ step, status: "running" });
-      await this.#settle(before);
-      onStep({ step, status: "done" });
+    // The instruction travels on-chain and is delivered by an independent
+    // provider, so this is dominated by dispatch latency, not enclave work.
+    const landed = await this.#waitForAttestation(before, 180_000);
+
+    if (!landed) {
+      // The steps are deliberately left "running": StageProcessing renders a
+      // failure mark for a running step once the stage has stopped, so throwing
+      // is enough and there is no need for a third status.
+      throw new Error(
+        "The enclave never reported an attestation. The instruction was sent on-chain, " +
+          "but nothing reached the enclave within 3 minutes — check that a TEE machine is " +
+          "registered and in PRODUCTION for this extension, and that its proxy /ready is 200.",
+      );
     }
+
+    for (const step of steps) onStep({ step, status: "done" });
+  }
+
+  /** Polls until the enclave's attestation counter moves, or the deadline passes. */
+  async #waitForAttestation(before: number, timeoutMs: number): Promise<boolean> {
+    const deadline = Date.now() + timeoutMs;
+    while (Date.now() < deadline) {
+      if ((await this.#attestationCount()) > before) return true;
+      await new Promise((r) => setTimeout(r, 2_000));
+    }
+    return false;
   }
 
   async #attestationCount(): Promise<number> {

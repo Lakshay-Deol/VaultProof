@@ -4,6 +4,7 @@ package config
 import (
 	"os"
 	"strconv"
+	"strings"
 	"time"
 )
 
@@ -29,6 +30,11 @@ const (
 	ExchangeTimeout = 20 * time.Second
 
 	TimeoutShutdown = 5 * time.Second
+
+	// The only endpoints a production enclave will ever talk to. Constants, so
+	// that an operator-supplied override is detectable by comparison.
+	DefaultKrakenBaseURL  = "https://api.kraken.com"
+	DefaultBinanceBaseURL = "https://api.binance.com"
 )
 
 // Defaults.
@@ -44,7 +50,46 @@ var (
 	// string, so a blob sealed for Coston2 cannot be opened by an enclave
 	// running against a different chain.
 	ChainID int64 = 114
+
+	// ExchangeBaseURLOverride, when non-empty, replaces the API root of
+	// whichever exchange is queried.
+	//
+	// It exists for exactly one reason: a run that cannot reach a real
+	// exchange — no account in the operator's jurisdiction, or an offline
+	// demo — needs a stub to stand in, or the FCC pipeline cannot be
+	// exercised end to end at all.
+	//
+	// That is also an attack: an operator who can choose the endpoint can
+	// point the enclave at a server reporting whatever balance mints the top
+	// tier. So the override is refused on real hardware, and refused at the
+	// point of use rather than only at startup — see
+	// vaultproof.CheckExchangeOverride.
+	ExchangeBaseURLOverride = ""
 )
+
+// ExchangeBaseURLOverridden reports whether an operator supplied an endpoint
+// in place of the canonical ones.
+func ExchangeBaseURLOverridden() bool {
+	return ExchangeBaseURLOverride != ""
+}
+
+// ExchangeBaseURL returns the API root for a named exchange.
+//
+// An empty return means the exchange is not one this enclave knows how to
+// talk to; callers treat that as a refusal rather than a default.
+func ExchangeBaseURL(exchange string) string {
+	if ExchangeBaseURLOverride != "" {
+		return ExchangeBaseURLOverride
+	}
+	switch exchange {
+	case "kraken":
+		return DefaultKrakenBaseURL
+	case "binance":
+		return DefaultBinanceBaseURL
+	default:
+		return ""
+	}
+}
 
 // Environment variables override defaults.
 func init() {
@@ -59,5 +104,11 @@ func init() {
 	}
 	if v, err := strconv.ParseInt(os.Getenv("CHAIN_ID"), 10, 64); err == nil && v != 0 {
 		ChainID = v
+	}
+	// Trailing slashes are trimmed because the endpoint path is concatenated
+	// directly and Kraken's signature covers the path — "//0/private/Balance"
+	// would sign one string and request another.
+	if v := os.Getenv("VAULTPROOF_EXCHANGE_BASE_URL"); v != "" {
+		ExchangeBaseURLOverride = strings.TrimRight(v, "/")
 	}
 }

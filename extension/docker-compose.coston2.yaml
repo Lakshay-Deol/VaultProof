@@ -6,8 +6,15 @@ services:
       - ./config/proxy/extension_proxy.coston2.docker.toml:/app/config/config.toml:ro
 
   extension-tee:
+    # Lets the enclave reach a stub exchange running on the host, for demo runs
+    # with no exchange account. Only used when VAULTPROOF_EXCHANGE_BASE_URL is
+    # set; unset, the enclave talks to the real exchange and this is inert.
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     environment:
       - CHAIN_URL=${CHAIN_URL:-https://coston2-api.flare.network/ext/C/rpc}
+      # Simulated runs only — refused on real hardware by CheckExchangeOverride.
+      - VAULTPROOF_EXCHANGE_BASE_URL=${VAULTPROOF_EXCHANGE_BASE_URL:-}
       # Coston2 chain id. The node binds every signature to this value; it must
       # match the proxy's chain_id (114) and the on-chain registry, or signature
       # verification fails (InvalidTeePublicKeyOrSignature / proxy panic).

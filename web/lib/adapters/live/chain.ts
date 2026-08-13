@@ -15,6 +15,12 @@ const ATTESTED_EVENT = solvencyRegistryAbi.find(
 )!;
 
 /**
+ * Fee forwarded with submitRequest, in wei. Flare's sendInstructions rejects a
+ * zero fee, so this is what makes anchoring possible at all.
+ */
+const INSTRUCTION_FEE_WEI = 10_000_000_000_000n; // 0.00001 C2FLR
+
+/**
  * Live Coston2 client.
  *
  * Reads go through a shared viem public client; writes go through the wallet
@@ -78,6 +84,15 @@ export class LiveChainClient implements ChainClient {
       args: [hash as `0x${string}`],
       account,
       chain: coston2,
+      // The FCC instruction fee. submitRequest forwards msg.value to
+      // sendInstructions, which reverts on a zero fee — so anchoring with no
+      // value fails outright and the pipeline cannot start.
+      //
+      // getDefaultFee() on the manager is 1000 wei; this is orders of magnitude
+      // above it so a schedule change does not break anchoring, and it is still
+      // ~0.00001 C2FLR. Unspent fee returns to the caller, since the contract
+      // sets claimBackAddress to msg.sender.
+      value: INSTRUCTION_FEE_WEI,
     });
 
     const txHash = await wallet.writeContract(request);

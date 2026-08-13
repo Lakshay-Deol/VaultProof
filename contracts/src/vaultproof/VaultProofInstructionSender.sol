@@ -27,6 +27,15 @@ interface ITeeExtensionRegistry {
     function getTeeExtensionInstructionsSender(uint256 _extensionId) external view returns (address);
 }
 
+/// @notice Minimal surface of Flare's TeeMachineRegistry. Transcribed from
+/// extension/contracts/interfaces/ITeeMachineRegistry.sol.
+interface ITeeMachineRegistry {
+    function getRandomTeeIds(uint256 _extensionId, uint256 _count)
+        external
+        view
+        returns (address[] memory);
+}
+
 /// @notice VaultProof's on-chain entry point, and the only address the
 /// SolvencyRegistry accepts attestations from.
 ///
@@ -57,6 +66,8 @@ contract VaultProofInstructionSender {
     SolvencyRegistry public registry;
     /// @notice Flare's TeeExtensionRegistry; zero until FCC registration.
     ITeeExtensionRegistry public teeExtensionRegistry;
+    /// @notice Flare's TeeMachineRegistry, used to pick a TEE to dispatch to.
+    ITeeMachineRegistry public teeMachineRegistry;
 
     uint256 private _extensionId;
 
@@ -79,10 +90,56 @@ contract VaultProofInstructionSender {
         _;
     }
 
-    /// @notice Anchor the hash of a sealed request blob. Payable so the same
-    /// call can carry the FCC instruction fee once routing is live.
+    /// @notice Anchor the hash of a sealed request blob AND dispatch the
+    /// ATTEST_SOLVENCY instruction that asks a TEE to act on it.
+    ///
+    /// The anchor must be emitted before the instruction is dispatched: the
+    /// enclave refuses a blob whose hash it has not seen anchored, so ordering
+    /// these the other way round would race the enclave against its own replay
+    /// defence.
+    ///
+    /// An earlier version of this function emitted the event and stopped. That
+    /// looked complete — the hash was anchored, the ciphertext was delivered,
+    /// gas was spent — but no instruction was ever created, so the enclave was
+    /// never asked to do anything and the pipeline stalled with nothing to
+    /// diagnose. The dispatch below is what was missing.
+    ///
+    /// `msg.value` forwards the FCC instruction fee. `claimBackAddress` is the
+    /// caller, so any unspent fee returns to the user rather than to us.
     function submitRequest(bytes32 requestHash) external payable {
         emit RequestSubmitted(msg.sender, requestHash);
+
+        // Routing is optional so the anchor path still works before FCC
+        // registration — deployment order requires this contract to exist
+        // before the extension that names it can be registered.
+        if (address(teeExtensionRegistry) == address(0) || address(teeMachineRegistry) == address(0)) {
+            return;
+        }
+
+        address[] memory teeIds = teeMachineRegistry.getRandomTeeIds(_requireExtensionId(), 1);
+
+        ITeeExtensionRegistry.TeeInstructionParams memory params = ITeeExtensionRegistry
+            .TeeInstructionParams({
+            opType: OP_TYPE,
+            opCommand: OP_SOLVENCY,
+            // Matches types.AttestSolvencyRequest in the Go enclave. The nonce
+            // is the request hash: it is already unique per request, and the
+            // enclave only echoes it back into the attestation.
+            message: abi.encodePacked(
+                '{"wallet":"',
+                _toHexString(msg.sender),
+                '","requestHash":"',
+                _toHexString32(requestHash),
+                '","nonce":"',
+                _toHexString32(requestHash),
+                '"}'
+            ),
+            cosigners: new address[](0),
+            cosignersThreshold: 0,
+            claimBackAddress: msg.sender
+        });
+
+        teeExtensionRegistry.sendInstructions{value: msg.value}(teeIds, params);
     }
 
     /// @notice TEE write path into the SolvencyRegistry.
@@ -116,6 +173,10 @@ contract VaultProofInstructionSender {
         teeExtensionRegistry = _teeExtensionRegistry;
     }
 
+    function setTeeMachineRegistry(ITeeMachineRegistry _teeMachineRegistry) external onlyOwner {
+        teeMachineRegistry = _teeMachineRegistry;
+    }
+
     function transferOwnership(address newOwner) external onlyOwner {
         owner = newOwner;
     }
@@ -139,5 +200,35 @@ contract VaultProofInstructionSender {
 
     function extensionId() external view returns (uint256) {
         return _extensionId;
+    }
+
+    // ---- internals ----
+
+    function _requireExtensionId() internal view returns (uint256) {
+        require(_extensionId != 0, "Extension ID is not set.");
+        return _extensionId;
+    }
+
+    /// @dev Lowercase 0x-prefixed address, the form the Go enclave parses.
+    function _toHexString(address value) internal pure returns (string memory) {
+        return _toHexString(abi.encodePacked(value), 20);
+    }
+
+    /// @dev Lowercase 0x-prefixed bytes32, matching the requestHash the browser
+    /// anchored — the enclave looks the sealed blob up by this exact string.
+    function _toHexString32(bytes32 value) internal pure returns (string memory) {
+        return _toHexString(abi.encodePacked(value), 32);
+    }
+
+    function _toHexString(bytes memory raw, uint256 length) private pure returns (string memory) {
+        bytes memory alphabet = "0123456789abcdef";
+        bytes memory out = new bytes(2 + length * 2);
+        out[0] = "0";
+        out[1] = "x";
+        for (uint256 i = 0; i < length; ++i) {
+            out[2 + i * 2] = alphabet[uint8(raw[i]) >> 4];
+            out[3 + i * 2] = alphabet[uint8(raw[i]) & 0x0f];
+        }
+        return string(out);
     }
 }

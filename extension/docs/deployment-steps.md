@@ -9,7 +9,10 @@ Linear recipe to deploy a TEE extension to Flare Coston or Coston2. Run the step
 - 🔨 Foundry (`forge`, `cast`)
 - `jq`
 - Bash (Git Bash on Windows works)
-- VPN access to Flare's indexer DB (`35.241.249.150:3306`)
+- Read-only credentials for Flare's Coston2 indexer DB. **No VPN** — Coston2 is publicly
+  reachable; the VPN requirement applies to Coston. Host and database name are in
+  [Build Your First Extension](https://dev.flare.network/fcc/guides/getting-started);
+  credentials come from Flare support. The old `35.241.249.150:3306` host is dead.
 
 ## 1. Get the extension repo
 

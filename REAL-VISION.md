@@ -169,10 +169,34 @@ reach. Two tiers:
 - **The end state:** GCP Confidential Space, `mode: 0`.
   [`extension/docs/confidential-space.md`](extension/docs/confidential-space.md).
 
-**2. Indexer database access.** The scaffold's ext-proxy reads Flare's Coston2 indexer at
-`35.241.249.150:3306`, which is reachable only over Flare's VPN. Without it the proxy does
-not start, so no TEE machine reaches `PRODUCTION` and no dispatched instruction is
-delivered. This is the single hardest blocker, and it is an access grant rather than work.
+**2. Indexer database access — resolved.** The scaffold's ext-proxy reads Flare's Coston2
+indexer, and that database is reachable from the open internet: Coston2 requires no VPN,
+per [Flare's FCC troubleshooting guide](https://dev.flare.network/fcc/troubleshooting).
+The VPN prerequisite the scaffold inherited applies to Coston, not Coston2. The current
+host and database name are in [Build Your First Extension](https://dev.flare.network/fcc/guides/getting-started);
+read-only credentials come from Flare support. The `35.241.249.150:3306` host named in
+older docs is dead — it answers ICMP but refuses the port, and its credentials have been
+rotated. Verified against the live database: it carries the `SigningPolicyInitialized` and
+`VoterRegistered` logs and the `signNewSigningPolicy` transactions the proxy queries, at
+roughly 8 seconds behind chain head, well inside the proxy's 140-second tolerance.
+
+A stable public HTTPS hostname was the next blocker; it is solved. Tailscale Funnel gives
+`https://<machine>.<tailnet>.ts.net` — stable across restarts, valid certificate, dual
+stack, free, and no domain required. `extension/scripts/funnel-daemon.sh` and
+`funnel-up.sh` bring it up and record the URL in `.env.coston2`.
+
+**The real remaining blocker is in this repository.**
+`VaultProofInstructionSender.submitRequest` only emits `RequestSubmitted`; it never calls
+`TEE_EXTENSION_REGISTRY.sendInstructions`, which is the call that actually dispatches an
+instruction to a TEE machine. The scaffold's `sendSayHello` makes that call and VaultProof's
+equivalent does not, so a user can seal, anchor and pay gas, and the enclave is still never
+asked to do anything. This was masked until now because the live enclave adapter reported
+each step done on a timer rather than on evidence.
+
+Closing it is a contract change plus a redeploy chain: implement the dispatch, redeploy the
+sender, and redeploy `SolvencyRegistry` and `LendingPool`, because the registry stores the
+sender address as an `immutable` and cannot be repointed. Then re-list the build's
+measurement and update `web/lib/config/addresses.ts`.
 
 **3. Port routing for the browser endpoints.** Stock FCC publishes only port 6664 (the
 proxy); the base `docker-compose.yaml` gives `extension-tee` no `ports:` mapping at all.

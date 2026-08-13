@@ -2,6 +2,7 @@ package extension
 
 import (
 	"context"
+	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
@@ -189,12 +190,35 @@ func (e *Extension) quoteHandler(w http.ResponseWriter, r *http.Request) {
 		mode = 1
 	}
 
+	// Simulated mode still has to serve a structurally real token. The check
+	// that actually protects the user is that the key they are about to
+	// encrypt to appears INSIDE the quote — that is what a substituted relay
+	// key fails. Serving an empty quote here would leave the browser nothing
+	// to bind against, so the only way to keep the pipeline moving would be to
+	// skip the binding check, which is the one check worth having.
+	//
+	// The token is marked alg:none and issued by "vaultproof-simulated", so it
+	// cannot be mistaken for a Google-signed one; the browser only verifies a
+	// signature when mode is 0, and would reject alg:none if it tried.
+	if mode == 1 {
+		quote = simulatedQuote(measurement, pubKey)
+	}
+
 	resp := map[string]any{
 		"measurement":      measurement,
 		"extensionVersion": config.Version,
 		"enclavePubKey":    pubKey,
 		"quote":            quote,
 		"mode":             mode,
+	}
+
+	// A run against a stub exchange must not be indistinguishable from a real
+	// one. It can only happen in simulated mode — CheckExchangeOverride
+	// refuses it on hardware — but "simulated" alone does not tell the user
+	// the holdings were read from somewhere other than the exchange, so the
+	// endpoint is named here rather than left to be inferred.
+	if config.ExchangeBaseURLOverridden() {
+		resp["exchangeBaseURL"] = config.ExchangeBaseURLOverride
 	}
 
 	w.Header().Set("Content-Type", "application/json")
@@ -328,4 +352,46 @@ func (e *Extension) processAttestSolvency(action teetypes.Action, df *instructio
 	data, _ := json.Marshal(resp)
 
 	return buildResult(action, df, data, 1, nil)
+}
+
+// simulatedQuote builds the attestation token served when there is no
+// Confidential Space launcher to sign one.
+//
+// It is deliberately NOT a forgery of a Google token. `alg` is "none" and the
+// issuer names the simulation, so it cannot be mistaken for a hardware
+// attestation by anything that looks at it — and the browser's verifier, which
+// rejects alg:none, would refuse it outright if it were ever presented as
+// mode 0. What it does carry is the binding that matters: the measurement and
+// the enclave's X25519 public key, inside the payload, so a relay that swaps
+// in its own key still fails the browser's check (b) exactly as it would on
+// real hardware.
+//
+// Field names mirror the Confidential Space token so the browser reads both
+// with one code path.
+func simulatedQuote(measurement, pubKey string) string {
+	header := map[string]any{"alg": "none", "typ": "JWT"}
+	payload := map[string]any{
+		"iss":     "vaultproof-simulated",
+		"hwmodel": "SIMULATED",
+		"swname":  "SIMULATED_TEE",
+		"submods": map[string]any{
+			"container": map[string]any{"image_digest": measurement},
+		},
+		"eat_nonce": pubKey,
+	}
+
+	// JWT segments are unpadded base64url. The signature segment is a literal
+	// marker rather than a signature: there is no key to sign with, and
+	// inventing one would be the dishonest version of this function.
+	return segment(header) + "." + segment(payload) + "." +
+		base64.RawURLEncoding.EncodeToString([]byte("simulated"))
+}
+
+func segment(v any) string {
+	raw, err := json.Marshal(v)
+	if err != nil {
+		// Both inputs are string maps built here; this cannot fail in practice.
+		return ""
+	}
+	return base64.RawURLEncoding.EncodeToString(raw)
 }
